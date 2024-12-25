@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>数字论证器</title>
+	<link href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.min.css" rel="stylesheet" type="text/css" />
+	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="stylesheet" href="./index.css">
+</head>
+
+<body class="bg-base-100 text-base-content">
+	<div class="container mx-auto flex flex-col items-center justify-center min-h-screen">
+		<h1 class="text-4xl font-bold mb-8">数字论证器</h1>
+
+		<div class="flex flex-col gap-4 mb-8">
+			<div class="form-control w-full max-w-xs">
+				<label class="label">
+					<span class="label-text">请输入基数:</span>
+				</label>
+				<input id="base-num" type="text" placeholder="例如：1234" class="input input-bordered w-full max-w-xs"
+					value="114514" />
+			</div>
+
+			<div class="form-control w-full max-w-xs">
+				<label class="label">
+					<span class="label-text">请输入要论证的数:</span>
+				</label>
+				<input id="target-num" type="text" placeholder="例如：100" class="input input-bordered w-full max-w-xs"
+					value="1000-7" />
+			</div>
+		</div>
+
+		<div id="result">
+			<h2 class="text-2xl font-bold mb-4">论证结果:</h2>
+			<div id="proof-expression" class="bg-gray-100 p-4 rounded-lg"></div>
+			<div id="error-message" class="text-red-500"></div>
+		</div>
+	</div>
+
+	<script type="module" src="./index.mjs"></script>
+	<script>
+		// 根据浏览器主题设置颜色模式
+		if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+			document.documentElement.setAttribute('data-theme', 'dark');
+		} else {
+			document.documentElement.setAttribute('data-theme', 'light');
+		}
+	</script>
+</body>
+
+</html>
