@@ -286,11 +286,6 @@ class bigfloat {
 					if (token === "-" && (i === 0 || tokens[i - 1] in precedence || tokens[i - 1] === "("))
 						operatorStack.push("~") // 用 "~" 表示一元负号
 					else {
-						// 处理运算符
-						// 检查连续的运算符
-						if (i > 0 && tokens[i - 1] in precedence && tokens[i - 1] !== "~")
-							console.warn("  WARNING: Consecutive operators detected:", tokens[i - 1], token)
-
 						while (
 							operatorStack.length > 0 && // 确保 operatorStack 不为空
 							operatorStack[operatorStack.length - 1] !== "(" &&
@@ -427,7 +422,11 @@ class bigfloat {
 	}
 }
 /**
- * @type {bigfloat & ((value: string | number | undefined) => bigfloat)}
+ * @type {bigfloat & {
+ *   (value: string | number | undefined) => bigfloat
+ *   eval(value: string | number | undefined): bigfloat
+ *   evalFromStrings(string: string): Record<string, bigfloat>
+ * }}
  */
 let bigfloatProxy = new Proxy(bigfloat, {
 	apply(target, thisArg, args) {

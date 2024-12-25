@@ -51,6 +51,7 @@ class expression_dictionary_t extends Function {
 	 * @throws {Error} 如果无法证明数字的存在。
 	 */
 	proveAst(num, max_depth = Infinity) {
+		num = bigfloat(num)
 		const num_str = String(num)
 
 		// 如果字典中已存在该数字，直接返回对应的 AST 节点
@@ -179,7 +180,6 @@ class expression_dictionary_t extends Function {
 	 * @throws {Error} 如果无法证明数字的存在。
 	 */
 	prove(num, max_depth = Infinity) {
-		num = bigfloat(num)
 		return this.proveAst(num, max_depth).toString()
 	}
 

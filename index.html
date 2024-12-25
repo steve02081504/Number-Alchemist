@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 
 <head>
 	<meta charset="UTF-8">
@@ -17,18 +17,51 @@
 		<div class="flex flex-col gap-4 mb-8">
 			<div class="form-control w-full max-w-xs">
 				<label class="label">
-					<span class="label-text">请输入基数:</span>
+					<span class="label-text">基数:</span>
 				</label>
-				<input id="base-num" type="text" placeholder="例如：1234" class="input input-bordered w-full max-w-xs"
-					value="114514" />
+				<div class="relative">
+					<input id="base-num" placeholder="例如：02081504" class="input input-bordered w-full max-w-xs pr-10"
+						value="114514" />
+					<div class="absolute inset-y-0 right-0 flex flex-col pr-2">
+						<button id="base-num-incr" class="h-1/2 focus:outline-none">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+								stroke="currentColor" class="w-4 h-4">
+								<path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+							</svg>
+						</button>
+						<button id="base-num-decr" class="h-1/2 focus:outline-none">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+								stroke="currentColor" class="w-4 h-4">
+								<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+							</svg>
+						</button>
+					</div>
+				</div>
+
 			</div>
 
 			<div class="form-control w-full max-w-xs">
 				<label class="label">
-					<span class="label-text">请输入要论证的数:</span>
+					<span class="label-text">论证数:</span>
 				</label>
-				<input id="target-num" type="text" placeholder="例如：100" class="input input-bordered w-full max-w-xs"
-					value="1000-7" />
+				<div class="relative">
+					<input id="target-num" placeholder="例如：1000-7" class="input input-bordered w-full max-w-xs pr-10"
+						value="1000-7" />
+					<div class="absolute inset-y-0 right-0 flex flex-col pr-2">
+						<button id="target-num-incr" class="h-1/2 focus:outline-none">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+								stroke="currentColor" class="w-4 h-4">
+								<path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+							</svg>
+						</button>
+						<button id="target-num-decr" class="h-1/2 focus:outline-none">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+								stroke="currentColor" class="w-4 h-4">
+								<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+							</svg>
+						</button>
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -45,14 +78,6 @@
 	</div>
 
 	<script type="module" src="./index.mjs"></script>
-	<script>
-		// 根据浏览器主题设置颜色模式
-		if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-			document.documentElement.setAttribute('data-theme', 'dark');
-		} else {
-			document.documentElement.setAttribute('data-theme', 'light');
-		}
-	</script>
 </body>
 
 </html>
