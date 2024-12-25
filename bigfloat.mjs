@@ -7,8 +7,9 @@ class ubigfloat {
 	denominator = 1n
 	gc() {
 		let gcd = (a, b) => a ? gcd(b % a, a) : b
-		this.numerator /= gcd(this.numerator, this.denominator)
-		this.denominator = this.denominator / gcd(this.numerator, this.denominator)
+		let common = gcd(this.numerator, this.denominator)
+		this.numerator /= common
+		this.denominator /= common
 		return this
 	}
 	static fromPair(numerator, denominator) {
@@ -23,7 +24,7 @@ class ubigfloat {
 			this.numerator = value.numerator
 			this.denominator = value.denominator
 		}
-		if (value instanceof Number && Math.floor(value) === value)
+		else if (Object(value) instanceof Number && Number.isInteger(value))
 			this.numerator = BigInt(value)
 		else if (value) {
 			let string = String(value)
@@ -82,8 +83,8 @@ class ubigfloat {
 		return this.numerator / this.denominator
 	}
 	toString() {
-		if (this.denominator == 1) return this.numerator.toString()
-		else if (this.denominator == 0) return '∞'
+		if (this.denominator === 1n) return this.numerator.toString()
+		if (this.denominator === 0n) return '∞' // 修复：分母为0应该返回无穷大
 		let integer = this.numerator / this.denominator
 		let decimal = this.numerator - integer * this.denominator
 		let result = integer.toString()
@@ -155,7 +156,6 @@ class bigfloat {
 	}
 
 	toString() {
-		if (this.basenum.denominator == 0) return '∞'
 		return (this.sign ? '-' : '') + this.basenum.toString()
 	}
 	static fromString(string) {
@@ -207,27 +207,40 @@ class bigfloat {
 	equals(other) {
 		other = new bigfloat(other)
 		if (this.basenum.equals(other.basenum))
-			if (this.basenum.numerator == 0) return true
+			if (!this.basenum.numerator) return true
 			else return this.sign === other.sign
 		return false
 	}
 	lessThan(other) {
 		other = new bigfloat(other)
-		return this.sign === other.sign ? this.basenum.lessThan(other.basenum) : this.sign
+		if (this.sign !== other.sign)
+			return this.sign
+		else if (this.sign) // 都是负数
+			return this.basenum.greaterThan(other.basenum) // 负数绝对值大的反而小
+		else
+			return this.basenum.lessThan(other.basenum)
 	}
 	greaterThan(other) {
 		other = new bigfloat(other)
-		return this.sign === other.sign ? this.basenum.greaterThan(other.basenum) : !this.sign
+		if (this.sign !== other.sign)
+			return !this.sign
+		else if (this.sign)
+			return this.basenum.lessThan(other.basenum) // 负数绝对值小的反而大
+		else
+			return this.basenum.greaterThan(other.basenum)
 	}
 	compare(other) {
 		other = new bigfloat(other)
-		return this.sign === other.sign ? this.basenum.compare(other.basenum) : [1, -1][this.sign]
+		if (this.sign !== other.sign)
+			return this.sign ? -1 : 1 // 修复：符号不同，直接比较符号
+		else
+			return this.basenum.compare(other.basenum)
 	}
 	floor() {
 		return bigfloat.fromNumAndSign(this.sign, new ubigfloat(this.basenum.floor()))
 	}
 	toBoolean() {
-		return this.basenum.greaterThan(0n)
+		return Boolean(this.basenum.numerator)
 	}
 	static eval(string) {
 		// 去除所有空格
@@ -236,7 +249,6 @@ class bigfloat {
 		// 校验表达式合法性
 		if (!/^[\d!%&()*+./<=>|\-]+$/.test(string))
 			throw new Error(`Invalid characters in expression: ${string}`)
-
 
 		// 定义运算符优先级和关联性
 		const precedence = {
@@ -390,7 +402,6 @@ class bigfloat {
 			if (stack.length !== 1)
 				throw new Error(`Invalid expression: ${string}`)
 
-
 			return stack[0]
 		}
 
@@ -416,7 +427,7 @@ class bigfloat {
 	}
 }
 /**
- * @type {bigfloat & ((value: string | number) => bigfloat)}
+ * @type {bigfloat & ((value: string | number | undefined) => bigfloat)}
  */
 let bigfloatProxy = new Proxy(bigfloat, {
 	apply(target, thisArg, args) {

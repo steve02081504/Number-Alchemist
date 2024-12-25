@@ -4,7 +4,7 @@ import { bigfloat } from './bigfloat.mjs'
  * 运算符优先级枚举。
  * @enum {number}
  */
-const precedence_t = {
+export const precedence_t = {
 	'u-': 4, // 一元负号
 	'^': 3,
 	'*': 2,
@@ -18,7 +18,7 @@ const precedence_t = {
  * 抽象语法树节点基类。
  * @class
  */
-class ast_node_t {
+export class ast_node_t {
 	#string_data
 	#calculation_steps
 	#calculation_result
@@ -73,6 +73,24 @@ class ast_node_t {
 	getCalculationStepsImpl() {
 		throw new Error('Not implemented')
 	}
+
+	/**
+	 * 获取json序列化后的AST节点。
+	 * @returns {Object} json序列化后的AST节点。
+	 */
+	toJSON() {
+		throw new Error('Not implemented')
+	}
+
+	/**
+	 * 将 json 序列化后的 AST 节点转换为 AST 节点。
+	 * @param {Object} json json 序列化后的 AST 节点。
+	 * @returns {ast_node_t} 转换后的 AST 节点。
+	 */
+	static fromJSON(json) {
+		if (Object(json) instanceof String) return new number_node_t(json)
+		return new operator_node_t(json.operator, json.children.map(child => ast_node_t.fromJSON(child)))
+	}
 }
 
 /**
@@ -80,7 +98,7 @@ class ast_node_t {
  * @class
  * @extends ast_node_t
  */
-class number_node_t extends ast_node_t {
+export class number_node_t extends ast_node_t {
 	/**
 	 * 构造函数。
 	 * @param {string|number} value 数字节点的值。
@@ -120,6 +138,14 @@ class number_node_t extends ast_node_t {
 			value: bigfloat(this.value),
 		}
 	}
+
+	/**
+	 * 获取json序列化后的AST节点。
+	 * @returns {Object} json序列化后的AST节点。
+	 */
+	toJSON() {
+		return this.value
+	}
 }
 
 /**
@@ -127,7 +153,7 @@ class number_node_t extends ast_node_t {
  * @class
  * @extends ast_node_t
  */
-class operator_node_t extends ast_node_t {
+export class operator_node_t extends ast_node_t {
 	/**
 	 * 构造函数。
 	 * @param {string} operator 运算符。
@@ -225,38 +251,6 @@ class operator_node_t extends ast_node_t {
 	}
 
 	/**
-	 * 反转加减符号。
-	 * @returns {operator_node_t} 符号反转后的新节点。
-	 */
-	invertSign() {
-		let [operand1, operand2] = this.children
-		operand1 = operand1?.invertSign?.() ?? operand1
-		operand2 = operand2?.invertSign?.() ?? operand2
-		if (this.operator === '+')
-			return new operator_node_t('-', [operand1, operand2])
-		else if (this.operator === '-')
-			return new operator_node_t('+', [operand1, operand2])
-		else
-			return this
-	}
-
-	/**
-	 * 反转乘除符号。
-	 * @returns {operator_node_t} 乘除符号反转后的新节点。
-	 */
-	invertMulti() {
-		let [operand1, operand2] = this.children
-		operand1 = operand1?.invertMulti?.() ?? operand1
-		operand2 = operand2?.invertMulti?.() ?? operand2
-		if (this.operator === '*')
-			return new operator_node_t('/', [operand1, operand2])
-		else if (this.operator === '/')
-			return new operator_node_t('*', [operand1, operand2])
-		else
-			return this
-	}
-
-	/**
 	 * 实现的计算逻辑。
 	 * @returns {bigfloat} 运算结果。
 	 */
@@ -306,6 +300,17 @@ class operator_node_t extends ast_node_t {
 			}
 		}
 	}
+
+	/**
+	 * json序列化。
+	 * @returns {Object} json序列化后的AST节点。
+	 */
+	toJSON() {
+		return {
+			operator: this.operator,
+			children: this.children.map(child => child.toJSON()),
+		}
+	}
 }
 
 /**
@@ -326,7 +331,7 @@ function baseAdd(dict, key, value) {
  * @param {bigfloat} key 键。
  * @param {ast_node_t} value 值（AST 节点）。
  */
-function add(dict, key, value) {
+export function add(dict, key, value) {
 	baseAdd(dict, key, value)
 	baseAdd(dict, key.neg(), new operator_node_t('u-', [value]))
 }
@@ -338,7 +343,7 @@ function add(dict, key, value) {
  * @param {bigfloat} max_value 最大值，用于剪枝。
  * @returns {Map<string, ast_node_t>} 合并后的字典。
  */
-function mergeDictionary(dict_1, dict_2, max_value) {
+export function mergeDictionary(dict_1, dict_2, max_value) {
 	const result = new Map()
 	const max_value_str = String(max_value)
 
@@ -377,234 +382,11 @@ function mergeDictionary(dict_1, dict_2, max_value) {
 	return result
 }
 
-/**
- * 表达式字典类，用于存储数字及其对应的表达式的 AST 表示。
- * @class
- */
-export class expression_dictionary_t {
-	/**
-	 * 内部存储的字典数据。
-	 * @type {Map<string, ast_node_t>}
-	 */
-	data
-
-	/**
-	 * 构造函数。
-	 * @param {string} [num_str] 初始数字字符串。
-	 */
-	constructor(num_str) {
-		num_str = String(num_str).replace(/\D/g, '')
-		let max_value = bigfloat(num_str.repeat(2))
-
-		/**
-		 * 递归生成数字的所有可能组合的字典，使用缓存避免重复计算。
-		 * @param {string} n 数字字符串。
-		 * @returns {Map<string, ast_node_t>} 包含数字 n 所有可能组合的字典。
-		 */
-		function generateRecursive(n) {
-			let result = new Map()
-
-			// 将数字拆分成左右两部分，递归生成子字典
-			if (n.length != 1)
-				for (let i = 1; i < n.length; i++) {
-					const left = n.slice(0, i)
-					const right = n.slice(i)
-					if (!left || !right) continue
-
-					result = mergeDictionary(generateRecursive(left), generateRecursive(right), max_value)
-				}
-
-			add(result, bigfloat(n), new number_node_t(n))
-			return result
-		}
-
-		this.data = generateRecursive(num_str)
-		add(this.data, bigfloat(num_str), new number_node_t(num_str))
-		this.data = new Map([...mergeDictionary(this.data, this.data, max_value).entries(), ...this.data.entries()])
-	}
-
-	/**
-	 * 获取字典中所有数字键的数组。
-	 * @returns {bigfloat[]} 数字键数组。
-	 */
-	getKeys() {
-		return Array.from(this.data.keys()).map(bigfloat)
-	}
-
-	/**
-	 * 证明给定数字可以由当前字典的子项运算结果表达。
-	 * @param {bigfloat} num 要证明的数字。
-	 * @param {number} [max_depth=Infinity] 最大搜索深度。
-	 * @returns {ast_node_t} 证明数字存在的 AST 节点。
-	 * @throws {Error} 如果无法证明数字的存在。
-	 */
-	proveAst(num, max_depth = Infinity) {
-		const num_str = String(num)
-
-		if (this.data.has(num_str))
-			return this.data.get(num_str)
-
-		// 处理非整数情况
-		if (!num.floor().equals(num)) {
-			const numerator_proof = this.proveAst(num.basenum.numerator, max_depth - 1)
-			const denominator_proof = this.proveAst(num.basenum.denominator, max_depth - 1)
-			const result = new operator_node_t('/', [numerator_proof, denominator_proof])
-			return result
-		}
-
-		// 限制搜索深度
-		if (max_depth <= 0)
-			throw new Error(`无法在指定深度内证明 ${num} 的存在`)
-
-		const sorted_keys = this.getKeys().sort((a, b) => b.compare(a)) // 从大到小排序
-
-		// 优化搜索策略：除法 -> 乘法 -> 取模 -> 减法 -> 加法
-		for (const key of sorted_keys) {
-			// 尝试除法
-			try {
-				let product = num
-				let times = 0n
-				while (true) {
-					let new_product = product.div(key)
-					if (!new_product.lessThan(product)) break
-					if (new_product.floor().equals(new_product)) {
-						product = new_product
-						times++
-					} else
-						break
-
-				}
-
-				if (times > 0) {
-					const key_str = key.toString()
-					const times_proof = this.proveAst(bigfloat(times), max_depth - 1)
-					const product_proof = this.proveAst(product, max_depth - 1)
-					const result = new operator_node_t('*', [
-						times > 1 ? new operator_node_t('^', [this.data.get(key_str), times_proof]) : this.data.get(key_str),
-						product_proof,
-					])
-					add(this.data, num, result)
-					return result
-				}
-			} catch (e) {
-				// 忽略除法错误
-			}
-
-			// 尝试乘法
-			try {
-				const product = num.mul(key)
-				const product_str = product.toString()
-				if (this.data.has(product_str)) {
-					const result = new operator_node_t('/', [this.data.get(product_str), this.data.get(key.toString())])
-					add(this.data, num, result)
-					return result
-				}
-			} catch (e) {
-				// 忽略乘法错误
-			}
-
-			// 尝试取模
-			try {
-				const mod_result = num.mod(key)
-				if (mod_result.abs().lessThan(num.abs())) {
-					const quotient = num.div(key).floor()
-					const quotient_proof = this.proveAst(quotient, max_depth - 1)
-					const mod_result_proof = this.proveAst(mod_result, max_depth - 1)
-
-					const result = new operator_node_t('+', [
-						new operator_node_t('*', [this.data.get(key.toString()), quotient_proof]),
-						mod_result_proof,
-					])
-					add(this.data, num, result)
-					return result
-				}
-			} catch (e) {
-				// 忽略取模错误
-			}
-
-			// 尝试减法
-			try {
-				const diff = num.sub(key)
-				if (diff.abs().lessThan(num.abs())) {
-					const diff_proof = this.proveAst(diff, max_depth - 1)
-					const result = new operator_node_t('+', [
-						this.data.get(key.toString()),
-						diff_proof,
-					])
-					add(this.data, num, result)
-					return result
-				}
-			} catch (e) {
-				// 忽略减法错误
-			}
-
-			// 尝试加法
-			try {
-				const sum = num.add(key)
-				const sum_str = sum.toString()
-				if (this.data.has(sum_str) || sum.abs().lessThan(num.abs())) {
-					const sum_proof = this.proveAst(sum, max_depth - 1)
-					const result = new operator_node_t('-', [
-						sum_proof,
-						this.data.get(key.toString()),
-					])
-					add(this.data, num, result)
-					return result
-				}
-			} catch (e) {
-				// 忽略加法错误
-			}
-		}
-
-		throw new Error(`无法证明 ${num} 的存在`)
-	}
-
-	/**
-	 * 证明给定数字可以由当前字典的子项运算结果表达。
-	 * @param {bigfloat} num 要证明的数字。
-	 * @param {number} [max_depth=Infinity] 最大搜索深度。
-	 * @returns {string} 证明数字存在的表达式字符串。
-	 * @throws {Error} 如果无法证明数字的存在。
-	 */
-	prove(num, max_depth = Infinity) {
-		num = bigfloat(num)
-		return this.proveAst(num, max_depth).toString()
-	}
-
-	/**
-	 * 获取表达式的计算步骤，用于调试。
-	 * @param {ast_node_t} node 表达式 AST 节点。
-	 * @returns {string} 分解后的计算步骤。
-	 */
-	getCalculationSteps(node) {
-		return node.getCalculationSteps().steps
-	}
-
-	/**
-	 * 测试函数。
-	 * @param {bigfloat} num 要测试的数字。
-	 * @returns {string} 证明数字存在的表达式。
-	 * @throws {Error} 如果证明失败或计算结果不匹配。
-	 */
-	test(num) {
-		let proof = this.prove(num, 17)
-		let num_result = bigfloat.eval(proof.replaceAll('^', '**'))
-		if (num_result.equals(num))
-			return proof
-		else {
-			let ast = this.data.get(num.toString())
-			console.log(ast.getCalculationSteps())
-			let result2
-			try {
-				result2 = eval(proof.replaceAll('^', '**'))
-			} catch (e) {
-				console.log(`证明 ${num} 失败：${proof} -> ${num_result}`)
-				throw e
-			}
-			if (num_result.equals(result2))
-				throw new Error(`证明 ${num} 失败：${proof} -> ${num_result}`)
-			else
-				throw new Error(`bigfloat.eval 有问题，证明 ${num} 失败：${proof} -> ${num_result}(from bigfloat.eval) != ${result2}(from eval)`)
-		}
-	}
+export function serializeMap(map) {
+	return Array.from(map.entries()).map(([k, v]) => [k, v.toJSON()])
 }
+
+export function deserializeMap(arr) {
+	return new Map(arr.map(([k, v]) => [k, ast_node_t.fromJSON(v)]))
+}
+

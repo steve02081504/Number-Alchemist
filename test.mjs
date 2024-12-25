@@ -1,9 +1,10 @@
-import { expression_dictionary_t } from './NumberAlchemist.mjs'
+import { expression_dictionary_t } from './dict.mjs'
 import ansiEscapes from 'npm:ansi-escapes'
 
 // 测试
-const dict = new expression_dictionary_t(114514)
+const dict = expression_dictionary_t(114514)
 console.log('字典:', dict.data.size)
+dict(1)
 function testlog(num) {
 	console.log(ansiEscapes.clearTerminal, dict.test(num))
 }
