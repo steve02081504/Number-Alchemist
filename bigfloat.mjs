@@ -20,10 +20,10 @@ class ubigfloat {
 	}
 	constructor(value) {
 		// 是否小数？
-		if (value instanceof ubigfloat) {
-			this.numerator = value.numerator
-			this.denominator = value.denominator
-		}
+		if (value instanceof ubigfloat)
+			return value
+		else if (Object(value) instanceof BigInt)
+			this.numerator = value
 		else if (Object(value) instanceof Number && Number.isInteger(value))
 			this.numerator = BigInt(value)
 		else if (value) {
@@ -56,35 +56,46 @@ class ubigfloat {
 		)
 	}
 	mod(other) {
+		if (this.isInf()) return other
+		if (!other.numerator) return new ubigfloat()
 		return ubigfloat.fromPair(
 			this.numerator * other.denominator % (this.denominator * other.numerator),
 			this.denominator * other.denominator
 		)
 	}
 	pow(other) {
+		if (other.isInf()) return other
+		let pow = other.floor()
 		return ubigfloat.fromPair(
-			this.numerator ** other.numerator,
-			this.denominator ** other.denominator
+			this.numerator ** pow,
+			this.denominator ** pow
 		)
 	}
+	isInf() {
+		return !this.denominator
+	}
 	equals(other) {
+		if (this.isInf() != other.isInf()) return false
 		return this.numerator * other.denominator === other.numerator * this.denominator
 	}
 	lessThan(other) {
+		if (this.isInf() != other.isInf()) return other.isInf()
 		return this.numerator * other.denominator < other.numerator * this.denominator
 	}
 	greaterThan(other) {
+		if (this.isInf() != other.isInf()) return this.isInf()
 		return this.numerator * other.denominator > other.numerator * this.denominator
 	}
 	compare(other) {
 		return this.greaterThan(other) ? 1 : this.lessThan(other) ? -1 : 0
 	}
 	floor() {
+		if (this.isInf()) return this
 		return this.numerator / this.denominator
 	}
 	toString() {
 		if (this.denominator === 1n) return this.numerator.toString()
-		if (this.denominator === 0n) return '∞' // 修复：分母为0应该返回无穷大
+		if (this.denominator === 0n) return '∞'
 		let integer = this.numerator / this.denominator
 		let decimal = this.numerator - integer * this.denominator
 		let result = integer.toString()
@@ -109,6 +120,7 @@ class ubigfloat {
 		return result
 	}
 	static fromString(string) {
+		if (string === '∞') return ubigfloat.fromPair(1n, 0n)
 		// handle [ and ]
 		if (string.includes('[')) {
 			let loop_part = string.slice(string.indexOf('[') + 1, string.indexOf(']'))
@@ -141,10 +153,8 @@ class bigfloat {
 	sign = false
 
 	constructor(value) {
-		if (value instanceof bigfloat) {
-			this.basenum = value.basenum
-			this.sign = value.sign
-		}
+		if (value instanceof bigfloat)
+			return value
 		else if (value) {
 			let string = String(value)
 			if (string.startsWith('-')) {
@@ -204,6 +214,9 @@ class bigfloat {
 		other = new bigfloat(other)
 		return bigfloat.fromNumAndSign(this.sign, this.basenum.pow(other.basenum))
 	}
+	isInf() {
+		return this.basenum.isInf()
+	}
 	equals(other) {
 		other = new bigfloat(other)
 		if (this.basenum.equals(other.basenum))
@@ -232,7 +245,7 @@ class bigfloat {
 	compare(other) {
 		other = new bigfloat(other)
 		if (this.sign !== other.sign)
-			return this.sign ? -1 : 1 // 修复：符号不同，直接比较符号
+			return this.sign ? -1 : 1
 		else
 			return this.basenum.compare(other.basenum)
 	}

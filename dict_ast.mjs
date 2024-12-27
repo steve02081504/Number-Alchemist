@@ -322,7 +322,24 @@ export class operator_node_t extends ast_node_t {
 function baseAdd(dict, key, value) {
 	const key_str = String(key)
 	if (!dict.has(key_str) || dict.get(key_str).toString().length > value.toString().length)
+	/*
+	{
+		try {
+			// 测试用
+			let result = bigfloat.eval(String(value).replaceAll('^', '**'))
+			if (!result.equals(key))
+				throw new Error(`追加错误key：${value} => ${result} != ${key}`)
+			result = value.calculate()
+			if (!result.equals(key))
+				throw new Error(`计算错误key：${value} => ${result} != ${key}`)
+		} catch (e) {
+			console.error(`追加错误key：${value} => ${e.message}`)
+		}
 		dict.set(key_str, value)
+	}
+	/*/
+		dict.set(key_str, value)
+	//*/
 }
 
 /**
@@ -359,13 +376,11 @@ export function mergeDictionary(dict_1, dict_2, max_value) {
 			// 乘法
 			add(result, key1.mul(key2), new operator_node_t('*', [val1, val2]))
 			// 取模
-			try {
-				add(result, key1.mod(key2), new operator_node_t('%', [val1, val2]))
-				// 除法 (如果可以整除才添加)
-				let div = key1.div(key2)
-				if (div.floor().equals(div))
-					add(result, div, new operator_node_t('/', [val1, val2]))
-			} catch { } // 忽略除以 0 的错误
+			add(result, key1.mod(key2), new operator_node_t('%', [val1, val2]))
+			// 除法 (如果可以整除才添加)
+			let div = key1.div(key2)
+			if (div.floor().equals(div))
+				add(result, div, new operator_node_t('/', [val1, val2]))
 			// 幂运算，快速剪枝
 			try {
 				if (

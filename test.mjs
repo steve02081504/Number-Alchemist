@@ -1,3 +1,4 @@
+import { bigfloat } from './bigfloat.mjs'
 import { expression_dictionary_t } from './dict.mjs'
 import ansiEscapes from 'npm:ansi-escapes'
 
@@ -25,3 +26,4 @@ for (let i = 0; i < 100; i++) {
 	const num = Math.floor(Math.random() * 10000000) - 5000000
 	testlog(num)
 }
+//*/

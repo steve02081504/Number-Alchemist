@@ -76,6 +76,7 @@ class expression_dictionary_t extends Function {
 		for (const key of sorted_keys)
 			// 尝试除法
 			try {
+				if (key.isInf() || key.equals(0)) continue
 				let product = num
 				let times = 0n
 				while (true) {
@@ -106,6 +107,7 @@ class expression_dictionary_t extends Function {
 		for (const key of sorted_keys)
 			// 尝试乘法
 			try {
+				if (key.isInf() || key.equals(0)) continue
 				const product = num.mul(key)
 				const product_str = product.toString()
 				if (this.data.has(product_str)) {
@@ -119,6 +121,7 @@ class expression_dictionary_t extends Function {
 		for (const key of sorted_keys)
 			// 尝试取模
 			try {
+				if (key.isInf() || key.equals(0)) continue
 				const mod_result = num.mod(key)
 				if (mod_result.abs().lessThan(num.abs())) {
 					const quotient = num.div(key).floor()
