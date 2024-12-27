@@ -1,4 +1,5 @@
 import { bigfloat } from './bigfloat.mjs'
+import { replace_able_t } from './replace_able.mjs'
 
 /**
  * 运算符优先级枚举。
@@ -18,26 +19,13 @@ export const precedence_t = {
  * 抽象语法树节点基类。
  * @class
  */
-export class ast_node_t {
-	#string_data
-	#calculation_steps
-	#calculation_result
-
+export class ast_node_t extends replace_able_t {
 	/**
 	 * 将 AST 节点转换为表达式字符串。
-	 * 使用缓存避免重复计算。
 	 * @returns {string} 节点对应的表达式字符串。
 	 */
 	toString(...args) {
-		return this.#string_data ??= this.toStringImpl(...args)
-	}
-
-	/**
-	 * 由子类实现的具体字符串转换逻辑。
-	 * @returns {string} 节点对应的表达式字符串。
-	 */
-	toStringImpl() {
-		throw new Error('Not implemented')
+		return this.toStringImpl(...args)
 	}
 
 	/**
@@ -46,32 +34,15 @@ export class ast_node_t {
 	 * @returns {bigfloat} 节点对应的计算结果。
 	 */
 	calculate() {
-		return this.#calculation_result ??= this.calculateImpl()
-	}
-
-	/**
-	 * 由子类实现的具体计算逻辑。
-	 * @returns {bigfloat} 节点对应的计算结果。
-	 */
-	calculateImpl() {
-		throw new Error('Not implemented')
+		return this.calculateImpl()
 	}
 
 	/**
 	 * 获取节点的计算步骤。
-	 * 使用缓存避免重复计算。
 	 * @returns {{steps: string, value: bigfloat}} 包含计算步骤和结果的对象。
 	 */
 	getCalculationSteps() {
-		return this.#calculation_steps ??= this.getCalculationStepsImpl()
-	}
-
-	/**
-	 * 由子类实现的具体计算步骤逻辑。
-	 * @returns {{steps: string, value: bigfloat}} 包含计算步骤和结果的对象。
-	 */
-	getCalculationStepsImpl() {
-		throw new Error('Not implemented')
+		return this.getCalculationStepsImpl()
 	}
 
 	/**
@@ -112,37 +83,21 @@ export class number_node_t extends ast_node_t {
 		this.value = value
 	}
 
-	/**
-	 * 实现的字符串转换逻辑。
-	 * @returns {string} 数字节点的字符串表示。
-	 */
-	toStringImpl() {
+	toString() {
 		return String(this.value)
 	}
 
-	/**
-	 * 实现的计算逻辑。
-	 * @returns {bigfloat} 数字节点的值。
-	 */
-	calculateImpl() {
+	calculate() {
 		return bigfloat(this.value)
 	}
 
-	/**
-	 * 实现的计算步骤逻辑。
-	 * @returns {{steps: string, value: bigfloat}} 包含计算步骤和结果的对象。
-	 */
-	getCalculationStepsImpl() {
+	getCalculationSteps() {
 		return {
 			steps: this.value.toString(),
 			value: bigfloat(this.value),
 		}
 	}
 
-	/**
-	 * 获取json序列化后的AST节点。
-	 * @returns {Object} json序列化后的AST节点。
-	 */
 	toJSON() {
 		return this.value
 	}
@@ -171,14 +126,20 @@ export class operator_node_t extends ast_node_t {
 		 * @type {string}
 		 */
 		this.operator = operator
+		// 优化：
+		// 加一个负值时，优化为减去负值的值
+		if (operator === '+' && children[1]?.operator === 'u-') {
+			this.operator = '-'
+			this.children = [children[0], children[1].children[0]]
+		}
+		// 减去负值时，优化为加上负值的值
+		if (operator === '-' && children[1]?.operator === 'u-') {
+			this.operator = '+'
+			this.children = [children[0], children[1].children[0]]
+		}
 	}
 
-	/**
-	 * 实现的字符串转换逻辑。
-	 * @param {string} [parent_operator] 父节点的运算符。
-	 * @returns {string} 运算符节点的字符串表示。
-	 */
-	toStringImpl(parent_operator) {
+	toString(parent_operator) {
 		const { operator, children } = this
 
 		// 一元运算符
@@ -250,11 +211,7 @@ export class operator_node_t extends ast_node_t {
 		return precedence_t[current_operator] < precedence_t[parent_operator]
 	}
 
-	/**
-	 * 实现的计算逻辑。
-	 * @returns {bigfloat} 运算结果。
-	 */
-	calculateImpl() {
+	calculate() {
 		const [operand1, operand2] = this.children
 		switch (this.operator) {
 			case '+':
@@ -276,11 +233,7 @@ export class operator_node_t extends ast_node_t {
 		}
 	}
 
-	/**
-	 * 实现的计算步骤逻辑。
-	 * @returns {{steps: string, value: bigfloat}} 包含计算步骤和结果的对象。
-	 */
-	getCalculationStepsImpl() {
+	getCalculationSteps() {
 		const [operand1, operand2] = this.children
 
 		if (this.operator === 'u-') {
@@ -301,10 +254,6 @@ export class operator_node_t extends ast_node_t {
 		}
 	}
 
-	/**
-	 * json序列化。
-	 * @returns {Object} json序列化后的AST节点。
-	 */
 	toJSON() {
 		return {
 			operator: this.operator,
@@ -321,25 +270,34 @@ export class operator_node_t extends ast_node_t {
  */
 function baseAdd(dict, key, value) {
 	const key_str = String(key)
-	if (!dict.has(key_str) || dict.get(key_str).toString().length > value.toString().length)
 	/*
-	{
+	if (!dict.has(key_str) || dict.get(key_str).toString().length > value.toString().length)
 		try {
 			// 测试用
-			let result = bigfloat.eval(String(value).replaceAll('^', '**'))
-			if (!result.equals(key))
-				throw new Error(`追加错误key：${value} => ${result} != ${key}`)
-			result = value.calculate()
-			if (!result.equals(key))
-				throw new Error(`计算错误key：${value} => ${result} != ${key}`)
+			let error_body = ''
+			let expr = String(value).replaceAll('^', '**')
+			let bfeval_result = bigfloat.eval(expr)
+			if (!bfeval_result.equals(key)) {
+				error_body += `追加错误key：${value} => ${bfeval_result} != ${key}\n`
+				if (eval(expr) != String(bfeval_result))
+					error_body += `bfeval的可能错误 => ${eval(expr)}（JS） != ${bfeval_result}（bigfloat）\n`
+			}
+			let ast_calculate_result = value.calculate()
+			if (!ast_calculate_result.equals(key))
+				error_body += `计算错误key：${value} => ${ast_calculate_result} != ${key}\n`
+
+			if (error_body) {
+				console.trace(error_body)
+				debugger
+			}
 		} catch (e) {
-			console.error(`追加错误key：${value} => ${e.message}`)
+			console.error(e)
 		}
-		dict.set(key_str, value)
-	}
-	/*/
-		dict.set(key_str, value)
 	//*/
+	if (!dict.has(key_str))
+		dict.set(key_str, value)
+	else if (dict.get(key_str).toString().length > value.toString().length)
+		dict.get(key_str).replace(value)
 }
 
 /**
@@ -404,4 +362,3 @@ export function serializeMap(map) {
 export function deserializeMap(arr) {
 	return new Map(arr.map(([k, v]) => [k, ast_node_t.fromJSON(v)]))
 }
-

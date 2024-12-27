@@ -6,24 +6,24 @@ import ansiEscapes from 'npm:ansi-escapes'
 const dict = expression_dictionary_t(114514)
 console.log('字典:', dict.data.size)
 dict(1)
-function testlog(num) {
-	console.log(ansiEscapes.clearTerminal, dict.test(num))
+async function testlog(num) {
+	console.log(ansiEscapes.clearTerminal, await dict.test(num))
 }
 for (let i = 0; i < 100; i++) {
 	const num = Math.floor(Math.random() * 1000) - 500
-	testlog(num)
+	await testlog(num)
 }
-testlog(114514)
-testlog(114514*2)
-testlog(114514*3)
-testlog(114514 + 3)
-testlog(-3)
-testlog(72)
-testlog(1919810)
-testlog(45450721)
+await testlog(114514)
+await testlog(114514*2)
+await testlog(114514*3)
+await testlog(114514 + 3)
+await testlog(-3)
+await testlog(72)
+await testlog(1919810)
+await testlog(45450721)
 // 随机100个测试
 for (let i = 0; i < 100; i++) {
 	const num = Math.floor(Math.random() * 10000000) - 5000000
-	testlog(num)
+	await testlog(num)
 }
 //*/

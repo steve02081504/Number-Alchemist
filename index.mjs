@@ -15,28 +15,28 @@ const errorMessageDiv = document.getElementById('error-message')
  */
 let dictionary
 
-function prove() {
+async function prove() {
 	const targetNumStr = String(bigfloat.eval(targetNumInput.value.replaceAll('^', '**')))
 
 	proofExpressionDiv.textContent = ''
 	errorMessageDiv.textContent = ''
 
-	try {
-		const proof = dictionary(targetNumStr)
+	dictionary(targetNumStr, Infinity, async str => {
 		proofExpressionDiv.textContent = `${targetNumInput.value} = `
 		if (targetNumInput.value != targetNumStr)
 			proofExpressionDiv.textContent += `${targetNumStr} = `
-		proofExpressionDiv.textContent += proof
-	} catch (error) {
-		errorMessageDiv.textContent = error.message
-	}
+		proofExpressionDiv.textContent += str
+		await new Promise(resolve => setTimeout(resolve, 0))
+	}).catch(e => {
+		errorMessageDiv.textContent = e.message
+	})
 }
 
-function reinitDictionary() {
+async function reinitDictionary() {
 	const baseNumStr = baseNumInput.value
 	dictionary = expression_dictionary_t(baseNumStr)
 
-	prove()
+	await prove()
 }
 
 baseNumInput.addEventListener('input', reinitDictionary)
@@ -45,11 +45,11 @@ targetNumInput.addEventListener('input', prove)
 reinitDictionary() // 首次加载时触发一次
 
 function setupButton(button, input, increment) {
-	const changeValue = () => {
+	const changeValue = async () => {
 		const currentValue = bigfloat.eval(input.value.replaceAll('^', '**'))
 		input.value = String(currentValue.add(increment))
-		if (input == targetNumInput) prove()
-		else if (input == baseNumInput) reinitDictionary()
+		if (input == targetNumInput) await prove()
+		else if (input == baseNumInput) await reinitDictionary()
 	}
 
 	let intervalId
