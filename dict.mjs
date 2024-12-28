@@ -103,30 +103,18 @@ class expression_dictionary_t extends Function {
 		let result
 		const warpped_callback = () => result ? callback(result) : undefined
 		const use_result = async (node) => {
-			result = this.getAst(num_str)
-			await warpped_callback()
-			return result
-		}
-
-		// 处理非整数情况
-		if (!num.floor().equals(num)) {
-			const numerator_proof = await this.#baseAstProve(num.basenum.numerator, max_depth - 1, warpped_callback)
-			const denominator_proof = await this.#baseAstProve(num.basenum.denominator, max_depth - 1, warpped_callback)
-			return use_result(new operator_node_t('/', [numerator_proof, denominator_proof]))
-		}
-
-		return this.#baseAstProve(num, max_depth, callback)
-	}
-	async #baseAstProve (num, max_depth, callback) {
-		const num_str = String(num)
-		let result
-		const warpped_callback = () => result ? callback(result) : undefined
-		const use_result = async (node) => {
 			if (!node) return
 			if (num.floor().equals(num)) add(this.data, num, node)
 			result = this.getAst(num_str)
 			if (result == node) await warpped_callback()
 			return result
+		}
+
+		// 处理非整数情况
+		if (!num.floor().equals(num)) {
+			const numerator_proof = await this.proveAst(num.basenum.numerator, max_depth - 1, warpped_callback)
+			const denominator_proof = await this.proveAst(num.basenum.denominator, max_depth - 1, warpped_callback)
+			return use_result(new operator_node_t('/', [numerator_proof, denominator_proof]))
 		}
 
 		// 如果字典中已存在该数字，直接返回对应的 AST 节点
@@ -139,8 +127,8 @@ class expression_dictionary_t extends Function {
 		try {
 			const factors = factorize(num)
 			if (!factors[0].abs().equals(1) && !factors[1].abs().equals(1)) {
-				const factor1_proof = await this.#baseAstProve(factors[0], max_depth - 1, warpped_callback)
-				const factor2_proof = await this.#baseAstProve(factors[1], max_depth - 1, warpped_callback)
+				const factor1_proof = await this.proveAst(factors[0], max_depth - 1, warpped_callback)
+				const factor2_proof = await this.proveAst(factors[1], max_depth - 1, warpped_callback)
 				await use_result(new operator_node_t('*', [factor1_proof, factor2_proof]))
 			}
 		} catch (e) { }
@@ -160,8 +148,8 @@ class expression_dictionary_t extends Function {
 			}
 			if (times > 0) {
 				const key_str = key.toString()
-				const times_proof = await this.#baseAstProve(bigfloat(times), max_depth - 1, warpped_callback)
-				const product_proof = await this.#baseAstProve(product, max_depth - 1, warpped_callback)
+				const times_proof = await this.proveAst(bigfloat(times), max_depth - 1, warpped_callback)
+				const product_proof = await this.proveAst(product, max_depth - 1, warpped_callback)
 				await use_result(new operator_node_t('*', [
 					times > 1 ? new operator_node_t('^', [this.getAst(key_str), times_proof]) : this.getAst(key_str),
 					product_proof,
@@ -184,8 +172,8 @@ class expression_dictionary_t extends Function {
 			const mod_result = num.mod(key)
 			if (mod_result.abs().lessThan(num.abs())) {
 				const quotient = num.div(key).floor()
-				const quotient_proof = await this.#baseAstProve(quotient, max_depth - 1, warpped_callback)
-				const mod_result_proof = await this.#baseAstProve(mod_result, max_depth - 1, warpped_callback)
+				const quotient_proof = await this.proveAst(quotient, max_depth - 1, warpped_callback)
+				const mod_result_proof = await this.proveAst(mod_result, max_depth - 1, warpped_callback)
 				await use_result(new operator_node_t('+', [
 					new operator_node_t('*', [this.getAst(key.toString()), quotient_proof]),
 					mod_result_proof,
@@ -198,7 +186,7 @@ class expression_dictionary_t extends Function {
 		for (const key of this.getKeys()) try {
 			const diff = num.sub(key)
 			if (diff.abs().lessThan(num.abs())) {
-				const diff_proof = await this.#baseAstProve(diff, max_depth - 1, warpped_callback)
+				const diff_proof = await this.proveAst(diff, max_depth - 1, warpped_callback)
 				await use_result(new operator_node_t('+', [
 					this.getAst(key.toString()),
 					diff_proof,
@@ -210,7 +198,7 @@ class expression_dictionary_t extends Function {
 			const sum = num.add(key)
 			const sum_str = sum.toString()
 			if (this.data.has(sum_str) || sum.abs().lessThan(num.abs())) {
-				const sum_proof = await this.#baseAstProve(sum, max_depth - 1, warpped_callback)
+				const sum_proof = await this.proveAst(sum, max_depth - 1, warpped_callback)
 				await use_result(new operator_node_t('-', [
 					sum_proof,
 					this.getAst(key.toString()),
