@@ -7,6 +7,12 @@
 	<title>数字论证器</title>
 	<link href="https://cdn.jsdelivr.net/npm/daisyui/daisyui.css" rel="stylesheet" type="text/css" />
 	<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser"></script>
+	<script type="text/javascript">
+		function googleTranslateElementInit() {
+			new google.translate.TranslateElement({ pageLanguage: 'zh-CN' }, 'google_translate_element')
+		}
+	</script>
+	<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 	<link rel="stylesheet" href="./index.css">
 </head>
 
@@ -15,22 +21,20 @@
 		<h1 class="text-4xl font-bold mb-6 text-center">数字论证器</h1>
 
 		<div class="flex flex-col gap-6 w-full max-w-md">
+			<div id="google_translate_element"></div>
 			<div class="form-control">
 				<label class="label">
 					<span class="label-text font-semibold">基数</span>
 				</label>
 				<div class="join w-full">
-					<input id="base-num" type="text" placeholder="例如：02081504"
-						class="input input-bordered join-item w-full" value="114514" />
+					<input id="base-num" type="text" placeholder="例如：02081504" class="input input-bordered join-item w-full" value="114514" />
 					<button id="base-num-incr" class="btn btn-square join-item btn-outline" aria-label="增加">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-							stroke="currentColor" class="w-5 h-5">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
 						</svg>
 					</button>
 					<button id="base-num-decr" class="btn btn-square join-item btn-outline" aria-label="减少">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-							stroke="currentColor" class="w-5 h-5">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M18 12H6" />
 						</svg>
 					</button>
@@ -42,17 +46,14 @@
 					<span class="label-text font-semibold">论证数</span>
 				</label>
 				<div class="join w-full">
-					<input id="target-num" type="text" placeholder="例如：1000-7"
-						class="input input-bordered join-item w-full" value="1000-7" />
+					<input id="target-num" type="text" placeholder="例如：1000-7" class="input input-bordered join-item w-full" value="1000-7" />
 					<button id="target-num-incr" class="btn btn-square join-item btn-outline" aria-label="增加">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-							stroke="currentColor" class="w-5 h-5">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
 						</svg>
 					</button>
 					<button id="target-num-decr" class="btn btn-square join-item btn-outline" aria-label="减少">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-							stroke="currentColor" class="w-5 h-5">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M18 12H6" />
 						</svg>
 					</button>
@@ -62,17 +63,14 @@
 
 		<div id="result" class="w-full max-w-md mt-8">
 			<h2 class="text-2xl font-bold mb-4 text-center">论证结果</h2>
-			<div id="proof-expression"
-				class="p-4 rounded-lg bg-base-200 text-lg font-mono whitespace-pre-wrap break-words shadow-md"></div>
+			<div id="proof-expression" class="p-4 rounded-lg bg-base-200 text-lg font-mono whitespace-pre-wrap break-words shadow-md"></div>
 			<div id="error-message" class="text-red-500 mt-2 text-center"></div>
 		</div>
 
 		<div class="mt-8">
-			<a href="https://github.com/steve02081504/Number-Alchemist" target="_blank" rel="noopener noreferrer"
-				class="text-blue-500 hover:underline font-medium">GitHub</a>
+			<a href="https://github.com/steve02081504/Number-Alchemist" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline font-medium">GitHub</a>
 		</div>
 	</div>
-
 	<script type="module" src="./index.mjs"></script>
 </body>
 
