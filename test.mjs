@@ -1,4 +1,3 @@
-import { bigfloat } from './bigfloat.mjs'
 import { expression_dictionary_t } from './dict.mjs'
 import ansiEscapes from 'npm:ansi-escapes'
 
@@ -14,8 +13,8 @@ for (let i = 0; i < 100; i++) {
 	await testlog(num)
 }
 await testlog(114514)
-await testlog(114514*2)
-await testlog(114514*3)
+await testlog(114514 * 2)
+await testlog(114514 * 3)
 await testlog(114514 + 3)
 await testlog(-3)
 await testlog(72)

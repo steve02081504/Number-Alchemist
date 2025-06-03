@@ -25,8 +25,8 @@ export class ast_node_t extends replace_able_t {
 	 * @type {Set<WeakRef<operator_node_t>>}
 	 */
 	parents
-	constructor () {
-		let self = super()
+	constructor() {
+		const self = super()
 		self.cache = {}
 		self.parents = new Set()
 	}
@@ -117,7 +117,7 @@ export class ast_node_t extends replace_able_t {
 		for (const parentRef of this.parents) {
 			const parent = parentRef.deref()
 			if (parent) {
-				let old_cache = parent.cache
+				const old_cache = parent.cache
 				parent.cache = {}
 				if (Object.keys(old_cache).length) parent.clearParentsCache()
 			} else
@@ -209,7 +209,50 @@ export class operator_node_t extends ast_node_t {
 		 * @type {string}
 		 */
 		this.operator = operator
-		// 优化：
+		// 辅助函数，用于获取节点的“绝对值”形式
+		// 如果是 u- 节点，返回其子节点；否则返回自身
+		const get_abs_node = (node) => node instanceof operator_node_t && node.operator === 'u-' ? node.children[0] : node
+		// 辅助函数，判断节点是否为一元负号节点
+		const is_neg_node = (node) => node instanceof operator_node_t && node.operator === 'u-'
+
+		// 1. 一元负号的简化: -(-x) => x
+		if (operator === 'u-') {
+			const operand = children[0]
+			if (operand instanceof operator_node_t && operand.operator === 'u-') {
+				this.clearParentsCache() // 清理被替换节点的父节点缓存
+				return operand.children[0] // 返回其子节点，实现负负得正
+			}
+		}
+
+		// 2. 二元运算符的简化 (加减法已部分实现，这里补充乘除法和零一优化)
+		if (children.length === 2) {
+			const [left, right] = children
+
+			// 乘法和除法中的负数规范化
+			// 目标：将负号提取到整个子表达式的最外层，或消除负号
+			// 例如：A * (-B) => -(A * B); (-A) * (-B) => A * B
+			const left_abs = get_abs_node(left)
+			const right_abs = get_abs_node(right)
+			const left_is_negative = is_neg_node(left)
+			const right_is_negative = is_neg_node(right)
+
+			if (operator === '*' || operator === '/')
+				if (left_is_negative && right_is_negative) {
+					// (-A) * (-B) => A * B
+					// (-A) / (-B) => A / B
+					this.operator = operator // 保持原有操作符
+					this.children = [left_abs, right_abs] // 使用绝对值形式的子节点
+				} else if (left_is_negative || right_is_negative) {
+					// A * (-B) => -(A * B)
+					// (-A) * B => -(A * B)
+					// A / (-B) => -(A / B)
+					// (-A) / B => -(A / B)
+					// 创建一个不带负号的二元操作节点，然后用 u- 包裹它
+					const new_binary_op_node = new operator_node_t(operator, [left_abs, right_abs])
+					this.clearParentsCache() // 清理被替换节点的父节点缓存
+					return new operator_node_t('u-', [new_binary_op_node]) // 返回一元负号节点
+				}
+		}
 		// 加一个负值时，优化为减去负值的值
 		if (operator === '+' && children[1]?.operator === 'u-') {
 			this.operator = '-'
@@ -220,9 +263,6 @@ export class operator_node_t extends ast_node_t {
 			this.operator = '+'
 			this.children = [children[0], children[1].children[0]]
 		}
-		// 负负得正
-		if (operator === 'u-' && children[0]?.operator === 'u-')
-			return children[0].children[0]
 		// 注册父节点
 		for (const child of children)
 			child.registerParent(this)
@@ -425,7 +465,7 @@ export function mergeDictionary(dict_1, dict_2, max_value) {
 			// 取模
 			add(result, key1.mod(key2), new operator_node_t('%', [val1, val2]))
 			// 除法 (如果可以整除才添加)
-			let div = key1.div(key2)
+			const div = key1.div(key2)
 			if (div.floor().equals(div))
 				add(result, div, new operator_node_t('/', [val1, val2]))
 			// 幂运算，快速剪枝

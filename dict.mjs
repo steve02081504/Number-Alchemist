@@ -2,7 +2,6 @@ import { bigfloat } from './bigfloat.mjs'
 import {
 	operator_node_t,
 	add,
-	ast_node_t,
 	number_node_t,
 	mergeDictionary,
 } from './dict_ast.mjs'
@@ -16,7 +15,7 @@ import { generateRecursive } from './dict_geneator.mjs'
  */
 function factorize(num) {
 	if (num.lessThan(0)) {
-		let result = factorize(num.neg())
+		const result = factorize(num.neg())
 		return [result[1], result[0].neg()]
 	}
 	let factor1 = bigfloat(1)
@@ -41,11 +40,12 @@ class expression_dictionary_t extends Function {
 	 */
 	constructor(num_str) {
 		super()
+		num_str = String(num_str).replace(/\D/g, '')
+		if (!num_str) return new bad_expression_dictionary_t()
 		{
-			num_str = String(num_str).replace(/\D/g, '')
 			const max_value = num_str.repeat(2)
 
-			let result = generateRecursive(num_str, max_value)
+			const result = generateRecursive(num_str, max_value)
 
 			let self_dict = new Map()
 			self_dict.set(num_str, new number_node_t(num_str))
@@ -54,7 +54,7 @@ class expression_dictionary_t extends Function {
 			this.data = new Map([...self_dict, ...result])
 		}
 		return new Proxy(this, {
-			apply: (target, thisArg, args) => this.prove(...args)
+			apply: (target, thisArg, args) => Reflect.apply(this.prove, this, args),
 		})
 	}
 
@@ -73,7 +73,7 @@ class expression_dictionary_t extends Function {
 	 * @returns {ast_node_t} 对应的 AST 节点。
 	 */
 	getAst(num) {
-		let result = this.data.get(String(num))
+		const result = this.data.get(String(num))
 		/*
 		//测试用
 		let bfeval_result = bigfloat.eval(String(result).replaceAll('^', '**'))
@@ -139,7 +139,7 @@ class expression_dictionary_t extends Function {
 			let product = num
 			let times = 0n
 			while (true) {
-				let new_product = product.div(key)
+				const new_product = product.div(key)
 				if (!new_product.lessThan(product)) break
 				if (new_product.floor().equals(new_product)) {
 					product = new_product
@@ -154,7 +154,7 @@ class expression_dictionary_t extends Function {
 					times > 1 ? new operator_node_t('^', [this.getAst(key_str), times_proof]) : this.getAst(key_str),
 					product_proof,
 				]))
-				if (Math.random() > 2/3) break
+				if (Math.random() > 2 / 3) break
 				else i -= Math.floor(Math.random() * (key_list.length - i))
 			}
 		} catch (e) { }
@@ -178,7 +178,7 @@ class expression_dictionary_t extends Function {
 					new operator_node_t('*', [this.getAst(key.toString()), quotient_proof]),
 					mod_result_proof,
 				]))
-				if (Math.random() > 2/3) break
+				if (Math.random() > 2 / 3) break
 				else i -= Math.floor(Math.random() * (key_list.length - i))
 			}
 		} catch (e) { }
@@ -219,7 +219,7 @@ class expression_dictionary_t extends Function {
 	 * @throws {Error} 如果无法证明数字的存在。
 	 */
 	async prove(num, max_depth = Infinity, callback = () => { }) {
-		return await this.proveAst(num, max_depth, (node) => callback(node.toString())).then((node) => node.toString())
+		return this.proveAst(num, max_depth, (node) => callback(node.toString())).then((node) => node.toString())
 	}
 
 	/**
@@ -239,12 +239,12 @@ class expression_dictionary_t extends Function {
 	 */
 	async test(num) {
 		num = bigfloat(num)
-		let proof = await this.prove(num, 17)
-		let num_result = bigfloat.eval(proof.replaceAll('^', '**'))
+		const proof = await this.prove(num, 17)
+		const num_result = bigfloat.eval(proof.replaceAll('^', '**'))
 		if (num_result.equals(num))
 			return proof
 		else {
-			let ast = this.getAst(num)
+			const ast = this.getAst(num)
 			console.log(ast.getCalculationSteps())
 			let result2
 			try {
@@ -258,6 +258,12 @@ class expression_dictionary_t extends Function {
 			else
 				throw new Error(`bigfloat.eval 有问题，证明 ${num} 失败：${proof} -> ${num_result}(from bigfloat.eval) != ${result2}(from eval)`)
 		}
+	}
+}
+class bad_expression_dictionary_t extends expression_dictionary_t {
+	constructor() {
+		super('1')
+		this.proveAst = async _ => { throw 'wtf do ya wanna? :(' }
 	}
 }
 /**

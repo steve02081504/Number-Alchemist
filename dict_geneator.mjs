@@ -10,7 +10,7 @@ import {
  * 用于缓存 generateRecursive 函数的结果，避免重复计算。
  * @type {Map<string, Map<string, ast_node_t>>}
  */
-let geneCache = new Map()
+const geneCache = new Map()
 
 /**
  * 递归生成数字的所有可能组合的字典。

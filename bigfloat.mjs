@@ -6,14 +6,14 @@ class ubigfloat {
 	numerator = 0n
 	denominator = 1n
 	gc() {
-		let gcd = (a, b) => a ? gcd(b % a, a) : b
-		let common = gcd(this.numerator, this.denominator)
+		const gcd = (a, b) => a ? gcd(b % a, a) : b
+		const common = gcd(this.numerator, this.denominator)
 		this.numerator /= common
 		this.denominator /= common
 		return this
 	}
 	static fromPair(numerator, denominator) {
-		let ubf = new ubigfloat()
+		const ubf = new ubigfloat()
 		ubf.numerator = BigInt(numerator)
 		ubf.denominator = BigInt(denominator)
 		return ubf
@@ -27,7 +27,7 @@ class ubigfloat {
 		else if (Object(value) instanceof Number && Number.isInteger(value))
 			this.numerator = BigInt(value)
 		else if (value) {
-			let string = String(value)
+			const string = String(value)
 			return ubigfloat.fromString(string)
 		}
 	}
@@ -65,7 +65,7 @@ class ubigfloat {
 	}
 	pow(other) {
 		if (other.isInf()) return other
-		let pow = other.floor()
+		const pow = other.floor()
 		return ubigfloat.fromPair(
 			this.numerator ** pow,
 			this.denominator ** pow
@@ -96,20 +96,20 @@ class ubigfloat {
 	toString() {
 		if (this.denominator === 1n) return this.numerator.toString()
 		if (this.denominator === 0n) return '∞'
-		let integer = this.numerator / this.denominator
+		const integer = this.numerator / this.denominator
 		let decimal = this.numerator - integer * this.denominator
 		let result = integer.toString()
 		if (decimal) {
 			result += '.'
-			let forever_loop_set = new Set()
+			const forever_loop_set = new Set()
 			while (decimal) {
 				decimal *= 10n
-				let char = (decimal / this.denominator).toString()
+				const char = (decimal / this.denominator).toString()
 				decimal %= this.denominator
 				if (forever_loop_set.has(decimal)) {
 					// add [ and ] to looping part
-					let loop_part = result.slice(-forever_loop_set.size)
-					let loop_before = result.slice(0, result.length - loop_part.length)
+					const loop_part = result.slice(-forever_loop_set.size)
+					const loop_before = result.slice(0, result.length - loop_part.length)
 					result = loop_before + '[' + loop_part + ']'
 					break
 				}
@@ -123,25 +123,25 @@ class ubigfloat {
 		if (string === '∞') return ubigfloat.fromPair(1n, 0n)
 		// handle [ and ]
 		if (string.includes('[')) {
-			let loop_part = string.slice(string.indexOf('[') + 1, string.indexOf(']'))
-			let loop_before = string.slice(0, string.indexOf('['))
-			let times = 7
-			let loopfewtimes = loop_part.repeat(times)
+			const loop_part = string.slice(string.indexOf('[') + 1, string.indexOf(']'))
+			const loop_before = string.slice(0, string.indexOf('['))
+			const times = 7
+			const loopfewtimes = loop_part.repeat(times)
 			let missing_numerator = ubigfloat.fromPair(BigInt('1' + '0'.repeat(times * loop_part.length)), BigInt(loopfewtimes) - BigInt(loop_part))
-			let scale = loop_before.split('.')[1]?.length || 0
+			const scale = loop_before.split('.')[1]?.length || 0
 			missing_numerator = ubigfloat.fromPair(1n, missing_numerator.floor() * 10n ** BigInt(scale))
-			let basenum = ubigfloat.fromString(loop_before)
+			const basenum = ubigfloat.fromString(loop_before)
 			return basenum.add(missing_numerator)
 		}
 		else {
-			let result = new ubigfloat()
-			let point_index = string.indexOf('.')
+			const result = new ubigfloat()
+			const point_index = string.indexOf('.')
 			if (point_index === -1) {
 				result.numerator = BigInt(string)
 				return result
 			}
-			let before_point = string.slice(0, point_index)
-			let after_point = string.slice(point_index + 1)
+			const before_point = string.slice(0, point_index)
+			const after_point = string.slice(point_index + 1)
 			result.denominator = 10n ** BigInt(after_point.length)
 			result.numerator = BigInt(before_point) * result.denominator + BigInt(after_point)
 			return result
@@ -172,7 +172,7 @@ class bigfloat {
 		return new bigfloat(string)
 	}
 	static fromNumAndSign(sign, ufloat) {
-		let result = new bigfloat()
+		const result = new bigfloat()
 		result.sign = sign
 		result.basenum = ufloat
 		return result
@@ -257,7 +257,7 @@ class bigfloat {
 	}
 	static eval(string) {
 		// 去除所有空格
-		string = string.replace(/\s+/g, "")
+		string = string.replace(/\s+/g, '')
 
 		// 校验表达式合法性
 		if (!/^[\d!%&()*+./<=>|\-]+$/.test(string))
@@ -265,22 +265,22 @@ class bigfloat {
 
 		// 定义运算符优先级和关联性
 		const precedence = {
-			"**": { prec: 4, assoc: "right" },
-			"~": { prec: 5, assoc: "right" }, // 一元负号
-			"*": { prec: 3, assoc: "left" },
-			"/": { prec: 3, assoc: "left" },
-			"%": { prec: 3, assoc: "left" },
-			"+": { prec: 2, assoc: "left" },
-			"-": { prec: 2, assoc: "left" },
-			"<": { prec: 1, assoc: "left" },
-			">": { prec: 1, assoc: "left" },
-			"<=": { prec: 1, assoc: "left" },
-			">=": { prec: 1, assoc: "left" },
-			"==": { prec: 1, assoc: "left" },
-			"!=": { prec: 1, assoc: "left" },
-			"&&": { prec: 0, assoc: "left" },
-			"||": { prec: 0, assoc: "left" },
-			"!": { prec: 5, assoc: "right" }, // 与一元负号相同
+			'**': { prec: 4, assoc: 'right' },
+			'~': { prec: 5, assoc: 'right' }, // 一元负号
+			'*': { prec: 3, assoc: 'left' },
+			'/': { prec: 3, assoc: 'left' },
+			'%': { prec: 3, assoc: 'left' },
+			'+': { prec: 2, assoc: 'left' },
+			'-': { prec: 2, assoc: 'left' },
+			'<': { prec: 1, assoc: 'left' },
+			'>': { prec: 1, assoc: 'left' },
+			'<=': { prec: 1, assoc: 'left' },
+			'>=': { prec: 1, assoc: 'left' },
+			'==': { prec: 1, assoc: 'left' },
+			'!=': { prec: 1, assoc: 'left' },
+			'&&': { prec: 0, assoc: 'left' },
+			'||': { prec: 0, assoc: 'left' },
+			'!': { prec: 5, assoc: 'right' }, // 与一元负号相同
 		}
 
 		// 将中缀表达式转换为后缀表达式 (Shunting-Yard 算法)
@@ -296,30 +296,30 @@ class bigfloat {
 					outputQueue.push(token)
 				else if (token in precedence)
 					// 处理一元负号
-					if (token === "-" && (i === 0 || tokens[i - 1] in precedence || tokens[i - 1] === "("))
-						operatorStack.push("~") // 用 "~" 表示一元负号
+					if (token === '-' && (i === 0 || tokens[i - 1] in precedence || tokens[i - 1] === '('))
+						operatorStack.push('~') // 用 "~" 表示一元负号
 					else {
 						while (
 							operatorStack.length > 0 && // 确保 operatorStack 不为空
-							operatorStack[operatorStack.length - 1] !== "(" &&
+							operatorStack[operatorStack.length - 1] !== '(' &&
 							(precedence[token].prec < precedence[operatorStack[operatorStack.length - 1]].prec ||
 								(precedence[token].prec === precedence[operatorStack[operatorStack.length - 1]].prec &&
-									precedence[token].assoc === "left"))
+									precedence[token].assoc === 'left'))
 						)
 							outputQueue.push(operatorStack.pop())
 
 						operatorStack.push(token)
 					}
-				else if (token === "(")
+				else if (token === '(')
 					// 左括号入栈
 					operatorStack.push(token)
-				else if (token === ")") {
+				else if (token === ')') {
 					// 右括号，弹出运算符直到遇到左括号
-					while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] !== "(")
+					while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] !== '(')
 						outputQueue.push(operatorStack.pop())
 
 					if (operatorStack.length === 0)
-						throw new Error("Mismatched parentheses")
+						throw new Error('Mismatched parentheses')
 
 					operatorStack.pop() // 弹出左括号
 				} else
@@ -329,8 +329,8 @@ class bigfloat {
 
 			// 将剩余的运算符弹出
 			while (operatorStack.length > 0) {
-				if (operatorStack[operatorStack.length - 1] === "(")
-					throw new Error("Mismatched parentheses")
+				if (operatorStack[operatorStack.length - 1] === '(')
+					throw new Error('Mismatched parentheses')
 
 				outputQueue.push(operatorStack.pop())
 			}
@@ -346,58 +346,58 @@ class bigfloat {
 				if (token.match(/[\d.]+/))
 					// 数字直接入栈
 					stack.push(new bigfloat(token))
-				else if (token in precedence || token === "~")
+				else if (token in precedence || token === '~')
 					// 运算符
-					if (token === "!") {
+					if (token === '!') {
 						const operand = stack.pop()
 						stack.push(new bigfloat(!operand.toBoolean()))
-					} else if (token === "~") {
+					} else if (token === '~') {
 						const operand = stack.pop()
 						stack.push(operand.neg())
 					} else {
 						const right = stack.pop()
 						const left = stack.pop()
 						switch (token) {
-							case "+":
+							case '+':
 								stack.push(left.add(right))
 								break
-							case "-":
+							case '-':
 								stack.push(left.sub(right))
 								break
-							case "*":
+							case '*':
 								stack.push(left.mul(right))
 								break
-							case "/":
+							case '/':
 								stack.push(left.div(right))
 								break
-							case "%":
+							case '%':
 								stack.push(left.mod(right))
 								break
-							case "**":
+							case '**':
 								stack.push(left.pow(right))
 								break
-							case "==":
+							case '==':
 								stack.push(new bigfloat(left.equals(right)))
 								break
-							case "<":
+							case '<':
 								stack.push(new bigfloat(left.lessThan(right)))
 								break
-							case ">":
+							case '>':
 								stack.push(new bigfloat(left.greaterThan(right)))
 								break
-							case "<=":
+							case '<=':
 								stack.push(new bigfloat(!left.greaterThan(right)))
 								break
-							case ">=":
+							case '>=':
 								stack.push(new bigfloat(!left.lessThan(right)))
 								break
-							case "!=":
+							case '!=':
 								stack.push(new bigfloat(!left.equals(right)))
 								break
-							case "&&":
+							case '&&':
 								stack.push(new bigfloat(left.toBoolean() && right.toBoolean()))
 								break
-							case "||":
+							case '||':
 								stack.push(new bigfloat(left.toBoolean() || right.toBoolean()))
 								break
 							default:
@@ -423,10 +423,10 @@ class bigfloat {
 		return evaluatePostfix(postfix)
 	}
 	static evalFromStrings(string) {
-		let exprs = string.match(/[\d!%()*+/<=>[\]\-]+/g)
+		const exprs = string.match(/[\d!%()*+/<=>[\]\-]+/g)
 		/** @type {Record<string, bigfloat>} */
-		let result = {}
-		for (let expr of exprs) try {
+		const result = {}
+		for (const expr of exprs) try {
 			if (expr.match(/^[\d.]*$/)) continue // 跳过纯数字
 			else if (!expr.match(/\d/)) continue // 跳过纯运算符
 			result[expr] = bigfloat.eval(expr)
@@ -441,7 +441,7 @@ class bigfloat {
  *   evalFromStrings(string: string): Record<string, bigfloat>
  * }}
  */
-let bigfloatProxy = new Proxy(bigfloat, {
+const bigfloatProxy = new Proxy(bigfloat, {
 	apply(target, thisArg, args) {
 		return new bigfloat(args[0])
 	}

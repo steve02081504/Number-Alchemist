@@ -19,7 +19,7 @@ async function prove() {
 	const targetNumStr = String(bigfloat.eval(targetNumInput.value.replaceAll('^', '**')))
 
 	proofExpressionDiv.textContent = ''
-	errorMessageDiv.textContent = ''
+	errorMessageDiv.textContent = 'loading...'
 
 	dictionary(targetNumStr, Infinity, async str => {
 		proofExpressionDiv.textContent = `${targetNumInput.value} = `
@@ -29,12 +29,18 @@ async function prove() {
 		await new Promise(resolve => setTimeout(resolve, 0))
 	}).catch(e => {
 		errorMessageDiv.textContent = e.message
+	}).then(() => {
+		errorMessageDiv.textContent = ''
 	})
 }
 
 async function reinitDictionary() {
 	const baseNumStr = baseNumInput.value
+	errorMessageDiv.textContent = 'loading...'
+	await new Promise(resolve => setTimeout(resolve, 0))
 	dictionary = expression_dictionary_t(baseNumStr)
+	errorMessageDiv.textContent = ''
+	await new Promise(resolve => setTimeout(resolve, 0))
 
 	await prove()
 }

@@ -8,7 +8,7 @@ export class replace_able_t {
 		return new Proxy(self, {
 			has: (target, prop) => Reflect.has(self.to, prop),
 			get: (target, prop, receiver) => {
-				let result = Reflect.get(self.to, prop, receiver)
+				const result = Reflect.get(self.to, prop, receiver)
 				if (result instanceof Function) return result.bind(self.to)
 				return result
 			},
@@ -47,11 +47,11 @@ export class replace_able_t {
 	 * 被替换时触发的函数
 	 * @param {Object} obj_that_will_replace_this 将要替换当前对象的对象。
 	 */
-	get_replaced(obj_that_will_replace_this) {}
+	get_replaced(obj_that_will_replace_this) { }
 
 	/**
 	 * 替换了别的对象时触发的函数
 	 * @param {Object} obj_that_was_replaced 被当前对象替换的对象。
 	 */
-	did_replace_to(obj_that_was_replaced) {}
+	did_replace_to(obj_that_was_replaced) { }
 }
