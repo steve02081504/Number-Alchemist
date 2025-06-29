@@ -1,5 +1,5 @@
 // worker.js
-import { bigfloat } from './bigfloat.mjs'
+import { bigfloat } from 'https://esm.run/@steve02081504/bigfloat'
 import {
 	number_node_t,
 	add,

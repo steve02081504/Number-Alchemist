@@ -1,4 +1,4 @@
-import { bigfloat } from './bigfloat.mjs'
+import { bigfloat } from 'https://esm.run/@steve02081504/bigfloat'
 import { replace_able_t } from './replace_able.mjs'
 
 /**

@@ -1,4 +1,4 @@
-import { bigfloat } from './bigfloat.mjs'
+import { bigfloat } from 'https://esm.run/@steve02081504/bigfloat'
 import { expression_dictionary_t } from './dict.mjs'
 
 const baseNumInput = document.getElementById('base-num')
