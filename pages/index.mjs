@@ -30,7 +30,7 @@ async function prove() {
 	errorMessageDiv.textContent = 'loading...'
 
 	try {
-		dictionary.prove(targetNumInput.value, {
+		dictionary.prove(targetNumStr, {
 			onProgress: async (str) => {
 				proofExpressionDiv.textContent = `${targetNumInput.value} = `
 				if (targetNumInput.value != targetNumStr)

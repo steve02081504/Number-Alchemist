@@ -32,12 +32,13 @@ process.stderr.write(`base=${baseStr}  target=${target}\nbuilding dictionary...`
 const dict = expression_dictionary_t(baseStr)
 process.stderr.write(` done (${dict.data.size} entries)\n`)
 
-let latest = ''
 const result = await dict.prove(target, {
 	max_depth,
 	onProgress: (node) => {
-		latest = String(node)
-		process.stderr.write(`\r${target} = ${latest}                    `)
+		process.stderr.write(`\r${target} = ${node}                    `)
 	},
 })
-process.stderr.write(`\r${target} = ${result}                    \n`)
+const evaluated = eval(result.replaceAll('^', '**'))
+if (!target.equals(evaluated))
+	throw new Error(`internal verification failed: ${result} != ${target}`)
+process.stderr.write(`\n`)

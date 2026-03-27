@@ -93,8 +93,9 @@ class expression_dictionary_t extends Function {
 		const use_result = async (node) => {
 			if (!node) return
 			if (num.floor().equals(num)) add(this.data, num, node)
+			const prev = result
 			result = this.getAst(num_str)
-			if (result !== node) await onProgress?.(result)
+			if (result?.get_self?.() !== prev?.get_self?.()) await onProgress?.(result)
 			return result
 		}
 		const next_level = {

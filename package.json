@@ -1,7 +1,7 @@
 {
 	"name": "@steve02081504/number-alchemist",
-	"version": "0.0.0",
-	"description": "Constructing and Demonstrating Expressions for Target Numbers from Cardinal Numbers",
+	"version": "0.0.1",
+	"description": "Construct and prove arithmetic expressions for any target number using only the digits of a base number.",
 	"type": "module",
 	"main": "./src/index.mjs",
 	"module": "./src/index.mjs",
