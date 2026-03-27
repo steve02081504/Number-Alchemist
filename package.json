@@ -1,0 +1,46 @@
+{
+	"name": "@steve02081504/number-alchemist",
+	"version": "0.0.0",
+	"description": "Constructing and Demonstrating Expressions for Target Numbers from Cardinal Numbers",
+	"type": "module",
+	"main": "./src/index.mjs",
+	"module": "./src/index.mjs",
+	"exports": {
+		".": "./src/index.mjs",
+		"./ast": "./src/dict_ast.mjs",
+		"./generator": "./src/dict_generator.mjs"
+	},
+	"bin": {
+		"number-alchemist": "./src/cli.mjs"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"number",
+		"expression",
+		"proof",
+		"arithmetic",
+		"ast",
+		"bigfloat",
+		"puzzle",
+		"math"
+	],
+	"peerDependencies": {
+		"@steve02081504/bigfloat": "^0.0.2"
+	},
+	"devDependencies": {
+		"@steve02081504/bigfloat": "^0.0.2",
+		"ansi-escapes": "^6.0.0"
+	},
+	"sideEffects": false,
+	"scripts": {
+		"test": "node src/test.mjs",
+		"debug": "node --inspect-wait src/test.mjs",
+		"cli": "node src/cli.mjs"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/steve02081504/Number-Alchemist.git"
+	}
+}

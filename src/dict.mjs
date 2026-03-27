@@ -1,11 +1,11 @@
-import { bigfloat } from 'https://esm.sh/@steve02081504/bigfloat'
+import { bigfloat } from '@steve02081504/bigfloat'
 import {
 	operator_node_t,
 	add,
 	number_node_t,
 	mergeDictionary,
 } from './dict_ast.mjs'
-import { generateRecursive } from './dict_geneator.mjs'
+import { generateRecursive } from './dict_generator.mjs'
 
 /**
  * 将一个整数分解成两个尽可能接近的因子，不能使用平方根运算。
@@ -74,17 +74,6 @@ class expression_dictionary_t extends Function {
 	 */
 	getAst(num) {
 		const result = this.data.get(String(num))
-		/*
-		//测试用
-		let bfeval_result = bigfloat.eval(String(result).replaceAll('^', '**'))
-		if (String(bfeval_result) !== String(num)) {
-			console.log(`缓存了错误的表达式：${result} -> ${bfeval_result} != ${num}`)
-			let eval_result = eval(String(result).replaceAll('^', '**'))
-			if (String(eval_result) !== String(bfeval_result))
-				console.log(`bfeval的可能错误 => ${eval_result}（JS） != ${bfeval_result}（bigfloat）`)
-			debugger
-		}
-		//*/
 		return result
 	}
 
@@ -92,28 +81,30 @@ class expression_dictionary_t extends Function {
 	 * 证明给定数字可以由当前字典的子项运算结果表达。
 	 * @param {bigfloat} num 要证明的数字。
 	 * @param {number} [max_depth=Infinity] 最大搜索深度。
-	 * @param {(node: ast_node_t) => void} [callback] 回调函数，每次证明更新时调用。
+	 * @param {(node: ast_node_t) => void} [onProgress] 每次证明更新时调用。
 	 * @returns {Promise<ast_node_t>} 证明数字存在的 AST 节点。
 	 * @throws {Error} 如果无法证明数字的存在。
 	 */
-	async proveAst(num, max_depth = Infinity, callback = () => { }) {
+	async proveAst(num, { max_depth = Infinity, onProgress } = {}) {
 		num = bigfloat(num)
 		const num_str = String(num)
 
 		let result
-		const warpped_callback = () => result ? callback(result) : undefined
 		const use_result = async (node) => {
 			if (!node) return
 			if (num.floor().equals(num)) add(this.data, num, node)
 			result = this.getAst(num_str)
-			if (result == node) await warpped_callback()
+			if (result !== node) await onProgress?.(result)
 			return result
+		}
+		const next_level = {
+			max_depth: max_depth - 1,
 		}
 
 		// 处理非整数情况
 		if (!num.floor().equals(num)) {
-			const numerator_proof = await this.proveAst(num.basenum.numerator, max_depth - 1, warpped_callback)
-			const denominator_proof = await this.proveAst(num.basenum.denominator, max_depth - 1, warpped_callback)
+			const numerator_proof = await this.proveAst(num.basenum.numerator, next_level)
+			const denominator_proof = await this.proveAst(num.basenum.denominator, next_level)
 			return use_result(new operator_node_t('/', [numerator_proof, denominator_proof]))
 		}
 
@@ -127,8 +118,8 @@ class expression_dictionary_t extends Function {
 		try {
 			const factors = factorize(num)
 			if (!factors[0].abs().equals(1) && !factors[1].abs().equals(1)) {
-				const factor1_proof = await this.proveAst(factors[0], max_depth - 1, warpped_callback)
-				const factor2_proof = await this.proveAst(factors[1], max_depth - 1, warpped_callback)
+				const factor1_proof = await this.proveAst(factors[0], next_level)
+				const factor2_proof = await this.proveAst(factors[1], next_level)
 				await use_result(new operator_node_t('*', [factor1_proof, factor2_proof]))
 			}
 		} catch (e) { }
@@ -148,8 +139,8 @@ class expression_dictionary_t extends Function {
 			}
 			if (times > 0) {
 				const key_str = key.toString()
-				const times_proof = await this.proveAst(bigfloat(times), max_depth - 1, warpped_callback)
-				const product_proof = await this.proveAst(product, max_depth - 1, warpped_callback)
+				const times_proof = await this.proveAst(bigfloat(times), next_level)
+				const product_proof = await this.proveAst(product, next_level)
 				await use_result(new operator_node_t('*', [
 					times > 1 ? new operator_node_t('^', [this.getAst(key_str), times_proof]) : this.getAst(key_str),
 					product_proof,
@@ -172,8 +163,8 @@ class expression_dictionary_t extends Function {
 			const mod_result = num.mod(key)
 			if (mod_result.abs().lessThan(num.abs())) {
 				const quotient = num.div(key).floor()
-				const quotient_proof = await this.proveAst(quotient, max_depth - 1, warpped_callback)
-				const mod_result_proof = await this.proveAst(mod_result, max_depth - 1, warpped_callback)
+				const quotient_proof = await this.proveAst(quotient, next_level)
+				const mod_result_proof = await this.proveAst(mod_result, next_level)
 				await use_result(new operator_node_t('+', [
 					new operator_node_t('*', [this.getAst(key.toString()), quotient_proof]),
 					mod_result_proof,
@@ -186,7 +177,7 @@ class expression_dictionary_t extends Function {
 		for (const key of this.getKeys()) try {
 			const diff = num.sub(key)
 			if (diff.abs().lessThan(num.abs())) {
-				const diff_proof = await this.proveAst(diff, max_depth - 1, warpped_callback)
+				const diff_proof = await this.proveAst(diff, next_level)
 				await use_result(new operator_node_t('+', [
 					this.getAst(key.toString()),
 					diff_proof,
@@ -198,7 +189,7 @@ class expression_dictionary_t extends Function {
 			const sum = num.add(key)
 			const sum_str = sum.toString()
 			if (this.data.has(sum_str) || sum.abs().lessThan(num.abs())) {
-				const sum_proof = await this.proveAst(sum, max_depth - 1, warpped_callback)
+				const sum_proof = await this.proveAst(sum, next_level)
 				await use_result(new operator_node_t('-', [
 					sum_proof,
 					this.getAst(key.toString()),
@@ -214,12 +205,12 @@ class expression_dictionary_t extends Function {
 	 * 证明给定数字可以由当前字典的子项运算结果表达。
 	 * @param {bigfloat} num 要证明的数字。
 	 * @param {number} [max_depth=Infinity] 最大搜索深度。
-	 * @param {(node: string) => void} [callback] 回调函数，每次证明更新时调用。
+	 * @param {(node: string) => void} [onProgress] 每次证明更新时调用。
 	 * @returns {Promise<string>} 证明数字存在的表达式。
 	 * @throws {Error} 如果无法证明数字的存在。
 	 */
-	async prove(num, max_depth = Infinity, callback = () => { }) {
-		return this.proveAst(num, max_depth, (node) => callback(node.toString())).then((node) => node.toString())
+	async prove(num, { max_depth = Infinity, onProgress } = {}) {
+		return this.proveAst(num, { max_depth, onProgress }).then((node) => node.toString())
 	}
 
 	/**
@@ -229,35 +220,6 @@ class expression_dictionary_t extends Function {
 	 */
 	getCalculationSteps(node) {
 		return node.getCalculationSteps().steps
-	}
-
-	/**
-	 * 测试函数。
-	 * @param {bigfloat} num 要测试的数字。
-	 * @returns {Promise<string>} 证明数字存在的表达式。
-	 * @throws {Error} 如果证明失败或计算结果不匹配。
-	 */
-	async test(num) {
-		num = bigfloat(num)
-		const proof = await this.prove(num, 17)
-		const num_result = bigfloat.eval(proof.replaceAll('^', '**'))
-		if (num_result.equals(num))
-			return proof
-		else {
-			const ast = this.getAst(num)
-			console.log(ast.getCalculationSteps())
-			let result2
-			try {
-				result2 = eval(proof.replaceAll('^', '**'))
-			} catch (e) {
-				console.log(`证明 ${num} 失败：${proof} -> ${num_result}`)
-				throw e
-			}
-			if (num_result.equals(result2))
-				throw new Error(`证明 ${num} 失败：${proof} -> ${num_result}`)
-			else
-				throw new Error(`bigfloat.eval 有问题，证明 ${num} 失败：${proof} -> ${num_result}(from bigfloat.eval) != ${result2}(from eval)`)
-		}
 	}
 }
 class bad_expression_dictionary_t extends expression_dictionary_t {

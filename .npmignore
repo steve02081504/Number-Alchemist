@@ -1,0 +1,14 @@
+# 页面与演示（非 npm 包内容）
+pages/
+
+# 编辑器与 CI
+.vscode/
+.github/
+
+# 本地与测试脚本（不随包发布）
+src/test.mjs
+
+# 杂项
+*.log
+.DS_Store
+Thumbs.db

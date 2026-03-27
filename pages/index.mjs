@@ -1,5 +1,7 @@
+import {
+	expression_dictionary_t
+} from 'https://esm.sh/@steve02081504/number-alchemist'
 import { bigfloat } from 'https://esm.sh/@steve02081504/bigfloat'
-import { expression_dictionary_t } from './dict.mjs'
 
 const baseNumInput = document.getElementById('base-num')
 const baseNumIncrButton = document.getElementById('base-num-incr')
@@ -10,28 +12,38 @@ const targetNumDecrButton = document.getElementById('target-num-decr')
 const proofExpressionDiv = document.getElementById('proof-expression')
 const errorMessageDiv = document.getElementById('error-message')
 
-/**
- * @type {expression_dictionary_t}
- */
+/** @type {expression_dictionary_t} */
 let dictionary
 
+/**
+ * 将用户输入的算式解析为 bigfloat（`^` 视为幂运算）。
+ * @param {string} expression
+ */
+function parseNumberExpression(expression) {
+	return bigfloat.eval(String(expression).replaceAll('^', '**'))
+}
+
 async function prove() {
-	const targetNumStr = String(bigfloat.eval(targetNumInput.value.replaceAll('^', '**')))
+	const targetNumStr = String(parseNumberExpression(targetNumInput.value))
 
 	proofExpressionDiv.textContent = ''
 	errorMessageDiv.textContent = 'loading...'
 
-	dictionary(targetNumStr, Infinity, async str => {
-		proofExpressionDiv.textContent = `${targetNumInput.value} = `
-		if (targetNumInput.value != targetNumStr)
-			proofExpressionDiv.textContent += `${targetNumStr} = `
-		proofExpressionDiv.textContent += str
-		await new Promise(resolve => setTimeout(resolve, 0))
-	}).catch(e => {
-		errorMessageDiv.textContent = e.message
-	}).then(() => {
+	try {
+		dictionary.prove(targetNumInput.value, {
+			onProgress: async (str) => {
+				proofExpressionDiv.textContent = `${targetNumInput.value} = `
+				if (targetNumInput.value != targetNumStr)
+					proofExpressionDiv.textContent += `${targetNumStr} = `
+				proofExpressionDiv.textContent += str
+				await new Promise(resolve => setTimeout(resolve, 0))
+			},
+		})
 		errorMessageDiv.textContent = ''
-	})
+	}
+	catch (e) {
+		errorMessageDiv.textContent = e?.message ?? String(e)
+	}
 }
 
 async function reinitDictionary() {
@@ -48,11 +60,11 @@ async function reinitDictionary() {
 baseNumInput.addEventListener('input', reinitDictionary)
 targetNumInput.addEventListener('input', prove)
 
-reinitDictionary() // 首次加载时触发一次
+reinitDictionary()
 
 function setupButton(button, input, increment) {
 	const changeValue = async () => {
-		const currentValue = bigfloat.eval(input.value.replaceAll('^', '**'))
+		const currentValue = parseNumberExpression(input.value)
 		input.value = String(currentValue.add(increment))
 		if (input == targetNumInput) await prove()
 		else if (input == baseNumInput) await reinitDictionary()
@@ -75,8 +87,6 @@ function setupBothButton(input, up, down) {
 setupBothButton(baseNumInput, baseNumIncrButton, baseNumDecrButton)
 setupBothButton(targetNumInput, targetNumIncrButton, targetNumDecrButton)
 
-
-// 根据浏览器主题设置颜色模式
 document.documentElement.setAttribute('data-theme',
 	window?.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light'
 )

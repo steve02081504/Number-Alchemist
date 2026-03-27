@@ -8,10 +8,9 @@
 			"request": "launch",
 			"name": "test",
 			"type": "node",
-			"program": "${workspaceFolder}/test.mjs",
+			"program": "${workspaceFolder}/src/test.mjs",
 			"cwd": "${workspaceFolder}",
 			"env": {},
-			"runtimeExecutable": "deno",
 			"runtimeArgs": [
 				"run",
 				"--unstable",

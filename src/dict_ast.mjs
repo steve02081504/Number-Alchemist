@@ -1,4 +1,4 @@
-import { bigfloat } from 'https://esm.sh/@steve02081504/bigfloat'
+import { bigfloat } from '@steve02081504/bigfloat'
 import { replace_able_t } from './replace_able.mjs'
 
 /**
@@ -6,6 +6,7 @@ import { replace_able_t } from './replace_able.mjs'
  * @enum {number}
  */
 export const precedence_t = {
+	[undefined]: 0,
 	'u-': 4, // 一元负号
 	'^': 3,
 	'*': 2,
@@ -76,23 +77,6 @@ export class ast_node_t extends replace_able_t {
 	}
 
 	/**
-	 * 获取节点的计算步骤。
-	 * @returns {{steps: string, value: bigfloat}} 包含计算步骤和结果的对象。
-	 */
-	getCalculationSteps() {
-		return this.cache.calculation_steps ??= this.getCalculationStepsImpl()
-	}
-
-	/**
-	 * 获取节点的计算步骤的实现。
-	 * @abstract
-	 * @returns {{steps: string, value: bigfloat}} 包含计算步骤和结果的对象。
-	 */
-	getCalculationStepsImpl() {
-		throw new Error('Not implemented')
-	}
-
-	/**
 	 * 获取json序列化后的AST节点。
 	 * @returns {Object} json序列化后的AST节点。
 	 */
@@ -120,9 +104,7 @@ export class ast_node_t extends replace_able_t {
 				const old_cache = parent.cache
 				parent.cache = {}
 				if (Object.keys(old_cache).length) parent.clearParentsCache()
-			} else
-				// 父节点已被垃圾回收，从集合中移除
-				this.parents.delete(parentRef)
+			} else this.parents.delete(parentRef) // 父节点已被垃圾回收，从集合中移除
 		}
 	}
 
@@ -172,13 +154,6 @@ export class number_node_t extends ast_node_t {
 
 	calculateImpl() {
 		return bigfloat(this.value)
-	}
-
-	getCalculationSteps() {
-		return {
-			steps: this.toString(),
-			value: this.calculate(),
-		}
 	}
 
 	toJSON() {
@@ -252,6 +227,22 @@ export class operator_node_t extends ast_node_t {
 					this.clearParentsCache() // 清理被替换节点的父节点缓存
 					return new operator_node_t('u-', [new_binary_op_node]) // 返回一元负号节点
 				}
+
+			// 幂运算简化
+			if (operator === '^') {
+				const exp = right.calculate()
+				// 负指数产生分数，在表达式字典中不适用，抛出让上层跳过此操作
+				if (exp.sign) throw new RangeError('negative exponent')
+				// 底数为负数：(-A)^偶数 => A^偶数；(-A)^奇数 => -(A^奇数)
+				if (left_is_negative && exp.floor().equals(exp))
+					if (exp.abs().floor() % 2n === 0n)
+						this.children = [left_abs, right]
+					else {
+						const new_pow_node = new operator_node_t('^', [left_abs, right])
+						this.clearParentsCache()
+						return new operator_node_t('u-', [new_pow_node])
+					}
+			}
 		}
 		// 加一个负值时，优化为减去负值的值
 		if (operator === '+' && children[1]?.operator === 'u-') {
@@ -268,76 +259,78 @@ export class operator_node_t extends ast_node_t {
 			child.registerParent(this)
 	}
 
-	toStringImpl(parent_operator) {
+	toStringImpl() {
 		const { operator, children } = this
 
 		// 一元运算符
 		if (operator === 'u-') {
-			const operand_str = this.formatOperand(children[0], operator, false)
+			const operand_str = this.formatOperand(children[0], this, false)
 			return `-${operand_str}`
 		}
 
 		// 二元运算符
 		const [left, right] = children
-		const left_str = this.formatOperand(left, operator, true)
-		const right_str = this.formatOperand(right, operator, false)
+		const left_str = this.formatOperand(left, this, true)
+		const right_str = this.formatOperand(right, this, false)
 
-		const expression = `${left_str}${operator}${right_str}`
-
-		// 根据优先级判断是否添加括号
-		return this.shouldAddParenthesis(parent_operator, operator) ? `(${expression})` : expression
+		return `${left_str}${operator}${right_str}`
 	}
 
 	/**
 	 * 格式化操作数，根据需要添加括号。
 	 * @param {ast_node_t} operand 子操作数节点。
-	 * @param {string} parent_operator 父运算符。
+	 * @param {ast_node_t} parent 父节点。
 	 * @param {boolean} is_left 是否为左操作数。
 	 * @returns {string} 格式化后的操作数字符串。
 	 */
-	formatOperand(operand, parent_operator, is_left) {
+	formatOperand(operand, parent, is_left) {
 		if (!(operand instanceof operator_node_t))
 			return operand.toString()
 
 		const { operator } = operand
 
 		// 同级运算符的结合性
-		if (parent_operator === operator) {
-			if ((parent_operator === '-' || parent_operator === '/') && !is_left)
-				return `(${operand.toString(parent_operator)})`
+		if (parent.operator === operator) {
+			if ((parent.operator === '-' || parent.operator === '/') && !is_left)
+				return `(${operand.toString()})`
 
-			// 加法、乘法和幂运算满足结合律
-			if (parent_operator === '+' || parent_operator === '*' || parent_operator === '^')
-				return operand.toString(parent_operator)
+			// 左结合：左操作数一侧可直接写出，如 a-b-c、(a/b)/c
+			if ((parent.operator === '-' || parent.operator === '/') && is_left)
+				return operand.toString()
+
+			// 加法和幂运算满足结合律，右操作数无需括号
+			if (parent.operator === '+' || parent.operator === '^')
+				return operand.toString()
+
+			// 乘法：左操作数无需括号；右操作数若最左路径含 % 或 /，会破坏左结合语义
+			// 例如 a*(b%c*d) 若省略括号写成 a*b%c*d，会被解析为 ((a*b)%c)*d
+			if (parent.operator === '*') {
+				const isCleanLeftPath = (node, op) => {
+					if (!(node instanceof operator_node_t)) return true
+					if (node.operator !== op) return false
+					return isCleanLeftPath(node.children[0], op)
+				}
+				return is_left || isCleanLeftPath(operand, '*') ? operand.toString() : `(${operand.toString()})`
+			}
 
 			// 一元负号
-			if (parent_operator === 'u-')
-				return `(${operand.toString(parent_operator)})`
-
+			if (parent.operator === 'u-')
+				return `(${operand.toString()})`
 		}
 
-		// 优先级相同但运算符不同
-		if (precedence_t[parent_operator] === precedence_t[operator])
-			return `(${operand.toString(parent_operator)})`
+		// 优先级相同但运算符不同（左结合）：仅右操作数需括号
+		if (precedence_t[parent.operator] === precedence_t[operator])
+			return is_left ? operand.toString() : `(${operand.toString()})`
+
+		// JS 中 -expr**n 是语法错误，一元负号作为幂运算左操作数时必须加括号
+		if (parent.operator === '^' && operator === 'u-')
+			return `(${operand.toString()})`
 
 		// 不同级运算符的优先级
-		if (this.shouldAddParenthesis(parent_operator, operator))
-			return `(${operand.toString(parent_operator)})`
+		if (precedence_t[operator] < precedence_t[parent.operator])
+			return `(${operand.toString()})`
 
-		return operand.toString(parent_operator)
-	}
-
-	/**
-	 * 判断是否需要添加括号。
-	 * @param {string} parent_operator 父运算符。
-	 * @param {string} current_operator 当前运算符。
-	 * @returns {boolean} 是否需要添加括号。
-	 */
-	shouldAddParenthesis(parent_operator, current_operator) {
-		if (!parent_operator)
-			return false
-
-		return precedence_t[current_operator] < precedence_t[parent_operator]
+		return operand.toString()
 	}
 
 	calculateImpl() {
@@ -362,27 +355,6 @@ export class operator_node_t extends ast_node_t {
 		}
 	}
 
-	getCalculationStepsImpl() {
-		const [operand1, operand2] = this.children
-
-		if (this.operator === 'u-') {
-			const { steps: operand_steps, value: operand_value } = operand1.getCalculationSteps()
-			const calculated_value = operand_value.neg()
-			return {
-				steps: `-(${operand_steps}) = ${calculated_value.toString()}`,
-				value: calculated_value,
-			}
-		} else {
-			const { steps: operand1_steps, value: operand1_value } = operand1.getCalculationSteps()
-			const { steps: operand2_steps, value: operand2_value } = operand2.getCalculationSteps()
-			const calculated_value = this.calculate()
-			return {
-				steps: `(${operand1_steps}) ${this.operator} (${operand2_steps}) = ${calculated_value.toString()}`,
-				value: calculated_value,
-			}
-		}
-	}
-
 	toJSON() {
 		return {
 			operator: this.operator,
@@ -399,30 +371,6 @@ export class operator_node_t extends ast_node_t {
  */
 function baseAdd(dict, key, value) {
 	const key_str = String(key)
-	/*
-	if (!dict.has(key_str) || dict.get(key_str).toString().length > value.toString().length)
-		try {
-			// 测试用
-			let error_body = ''
-			let expr = String(value).replaceAll('^', '**')
-			let bfeval_result = bigfloat.eval(expr)
-			if (!bfeval_result.equals(key)) {
-				error_body += `追加错误key：${value} => ${bfeval_result} != ${key}\n`
-				if (eval(expr) != String(bfeval_result))
-					error_body += `bfeval的可能错误 => ${eval(expr)}（JS） != ${bfeval_result}（bigfloat）\n`
-			}
-			let ast_calculate_result = value.calculate()
-			if (!ast_calculate_result.equals(key))
-				error_body += `计算错误key：${value} => ${ast_calculate_result} != ${key}\n`
-
-			if (error_body) {
-				console.trace(error_body)
-				debugger
-			}
-		} catch (e) {
-			console.error(e)
-		}
-	//*/
 	if (!dict.has(key_str))
 		dict.set(key_str, value)
 	else if (dict.get(key_str).toString().length > value.toString().length)
