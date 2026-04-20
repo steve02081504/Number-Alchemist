@@ -21,32 +21,12 @@ export const precedence_t = {
  * @class
  */
 export class ast_node_t extends replace_able_t {
-	cache
-	/**
-	 * @type {Set<WeakRef<operator_node_t>>}
-	 */
-	parents
-	constructor() {
-		const self = super()
-		self.cache = {}
-		self.parents = new Set()
-	}
-	/**
-	 * 被替换时调用。
-	 * @param {ast_node_t} obj 被替换的对象。
-	 */
-	get_replaced(obj) {
-		// 清理当前节点的缓存
-		this.clearParentsCache()
-		// 清空当前节点的父节点集合
-		obj.parents = new Set([...new Set([...this.parents, ...obj.parents].map(ref => ref.deref()).filter(Boolean))].map(parent => new WeakRef(parent)))
-	}
 	/**
 	 * 将 AST 节点转换为表达式字符串。
 	 * @returns {string} 节点对应的表达式字符串。
 	 */
 	toString(...args) {
-		return this.cache.to_string ??= this.toStringImpl(...args)
+		return this.toStringImpl(...args)
 	}
 
 	/**
@@ -60,11 +40,10 @@ export class ast_node_t extends replace_able_t {
 
 	/**
 	 * 获取节点对应的计算结果。
-	 * 使用缓存避免重复计算。
 	 * @returns {bigfloat} 节点对应的计算结果。
 	 */
 	calculate() {
-		return this.cache.calculate ??= this.calculateImpl()
+		return this.calculateImpl()
 	}
 
 	/**
@@ -93,40 +72,6 @@ export class ast_node_t extends replace_able_t {
 		if (Object(json) instanceof String) return new number_node_t(json)
 		return new operator_node_t(json.operator, json.children.map(child => ast_node_t.fromJSON(child)))
 	}
-
-	/**
-	 * 清理父节点的缓存
-	 */
-	clearParentsCache() {
-		for (const parentRef of this.parents) {
-			const parent = parentRef.deref()
-			if (parent) {
-				const old_cache = parent.cache
-				parent.cache = {}
-				if (Object.keys(old_cache).length) parent.clearParentsCache()
-			} else this.parents.delete(parentRef) // 父节点已被垃圾回收，从集合中移除
-		}
-	}
-
-	/**
-	 * 注册父节点
-	 * @param {operator_node_t} parent 父节点
-	 */
-	registerParent(parent) {
-		this.parents.add(new WeakRef(parent))
-	}
-
-	/**
-	 * 取消注册父节点
-	 * @param {operator_node_t} parent 父节点
-	 */
-	unregisterParent(parent) {
-		for (const parentRef of this.parents)
-			if (parentRef.deref() === parent) {
-				this.parents.delete(parentRef)
-				break
-			}
-	}
 }
 
 /**
@@ -137,15 +82,15 @@ export class ast_node_t extends replace_able_t {
 export class number_node_t extends ast_node_t {
 	/**
 	 * 构造函数。
-	 * @param {string|number} value 数字节点的值。
+	 * @param {bigint|string|number} value 数字节点的值。
 	 */
 	constructor(value) {
 		super()
 		/**
 		 * 节点值。
-		 * @type {string|number}
+		 * @type {bigint}
 		 */
-		this.value = value
+		this.value = BigInt(value)
 	}
 
 	toStringImpl() {
@@ -193,10 +138,8 @@ export class operator_node_t extends ast_node_t {
 		// 1. 一元负号的简化: -(-x) => x
 		if (operator === 'u-') {
 			const operand = children[0]
-			if (operand instanceof operator_node_t && operand.operator === 'u-') {
-				this.clearParentsCache() // 清理被替换节点的父节点缓存
+			if (operand instanceof operator_node_t && operand.operator === 'u-')
 				return operand.children[0] // 返回其子节点，实现负负得正
-			}
 		}
 
 		// 2. 二元运算符的简化 (加减法已部分实现，这里补充乘除法和零一优化)
@@ -224,7 +167,6 @@ export class operator_node_t extends ast_node_t {
 					// (-A) / B => -(A / B)
 					// 创建一个不带负号的二元操作节点，然后用 u- 包裹它
 					const new_binary_op_node = new operator_node_t(operator, [left_abs, right_abs])
-					this.clearParentsCache() // 清理被替换节点的父节点缓存
 					return new operator_node_t('u-', [new_binary_op_node]) // 返回一元负号节点
 				}
 
@@ -239,7 +181,6 @@ export class operator_node_t extends ast_node_t {
 						this.children = [left_abs, right]
 					else {
 						const new_pow_node = new operator_node_t('^', [left_abs, right])
-						this.clearParentsCache()
 						return new operator_node_t('u-', [new_pow_node])
 					}
 			}
@@ -254,9 +195,6 @@ export class operator_node_t extends ast_node_t {
 			this.operator = '+'
 			this.children = [children[0], children[1].children[0]]
 		}
-		// 注册父节点
-		for (const child of children)
-			child.registerParent(this)
 	}
 
 	toStringImpl() {
