@@ -1,11 +1,28 @@
 import { bigfloat } from '@steve02081504/bigfloat'
-import {
-	operator_node_t,
-	add,
-	number_node_t,
-	mergeDictionary,
-} from './dict_ast.mjs'
+import { add, mergeDictionary, combine, combineUnaryNeg } from './expr_ops.mjs'
 import { generateRecursive } from './dict_generator.mjs'
+
+/**
+ * 去掉非数字字符后是否非空（命中缓存时的短路：直接返回缓存式）。
+ * @param {string} expr
+ */
+function cacheDigitShortcut(expr) {
+	return expr.replace(/\D/g, '').length > 0
+}
+
+/**
+ * @param {string} expr
+ * @param {RegExpMatchArray[]} matches
+ */
+async function expandLiteralsInExpr(that, expr, opts, matches) {
+	let out = expr
+	for (const m of matches) {
+		const v = m[0]
+		const repl = await that.prove(bigfloat(v), opts)
+		out = out.slice(0, m.index) + `(${repl})` + out.slice(m.index + v.length)
+	}
+	return out
+}
 
 /**
  * 将一个整数分解成两个尽可能接近的因子，不能使用平方根运算。
@@ -31,7 +48,7 @@ function factorize(num) {
 }
 
 /**
- * 表达式字典类，用于存储数字及其对应的表达式的 AST 表示。
+ * 表达式字典类，用于存储数字及其对应的表达式字符串。
  * @class
  */
 class expression_dictionary_t extends Function {
@@ -48,7 +65,7 @@ class expression_dictionary_t extends Function {
 			const result = generateRecursive(num_str, max_value)
 
 			let self_dict = new Map()
-			self_dict.set(num_str, new number_node_t(num_str))
+			self_dict.set(num_str, num_str)
 			self_dict = mergeDictionary(self_dict, self_dict, max_value)
 
 			this.data = new Map([...self_dict, ...result])
@@ -68,65 +85,66 @@ class expression_dictionary_t extends Function {
 	}
 
 	/**
-	 * 获取字典中特定数字的 AST 节点。
-	 * @param {bigfloat} num 要获取的数字。
-	 * @returns {ast_node_t} 对应的 AST 节点。
+	 * @param {bigfloat} num
+	 * @returns {string | undefined}
 	 */
-	getAst(num) {
-		const result = this.data.get(String(num))
-		return result
+	getExpr(num) {
+		return this.data.get(String(num))
 	}
 
 	/**
-	 * 证明给定数字可以由当前字典的子项运算结果表达。
-	 * @param {bigfloat} num 要证明的数字。
-	 * @param {number} [max_depth=Infinity] 最大搜索深度。
-	 * @param {(node: ast_node_t) => void} [onProgress] 每次证明更新时调用。
-	 * @returns {Promise<ast_node_t>} 证明数字存在的 AST 节点。
-	 * @throws {Error} 如果无法证明数字的存在。
+	 * 确保 num 已在字典中有符号化表达式（必要时搜索并写入）。
+	 * @param {bigfloat} num
+	 * @param {{ max_depth?: number, onProgress?: (s: string) => void }} [opts]
 	 */
-	async proveAst(num, { max_depth = Infinity, onProgress } = {}) {
+	async ensureProven(num, { max_depth = Infinity, onProgress } = {}) {
 		num = bigfloat(num)
 		const num_str = String(num)
 
-		let result
-		const use_result = async (node) => {
-			if (!node) return
-			if (num.floor().equals(num)) add(this.data, num_str, node)
-			const prev = result
-			result = this.getAst(num_str)
-			if (result?.get_self?.() !== prev?.get_self?.()) await onProgress?.(result)
-			return result
+		let lastSym
+		const use_result = async (symStr) => {
+			if (!symStr) return
+			if (num.floor().equals(num)) add(this.data, num_str, symStr)
+			const prev = lastSym
+			lastSym = this.data.get(num_str)
+			if (lastSym !== prev) await onProgress?.(lastSym)
 		}
-		const next_level = {
-			max_depth: max_depth - 1,
-		}
+		const next_level = { max_depth: max_depth - 1, onProgress }
 
-		// 处理非整数情况
 		if (!num.floor().equals(num)) {
-			const numerator_proof = await this.proveAst(num.basenum.numerator, next_level)
-			const denominator_proof = await this.proveAst(num.basenum.denominator, next_level)
-			return use_result(new operator_node_t('/', [numerator_proof, denominator_proof]))
+			const nStr = String(num.basenum.numerator)
+			const dStr = String(num.basenum.denominator)
+			await this.ensureProven(num.basenum.numerator, next_level)
+			await this.ensureProven(num.basenum.denominator, next_level)
+			return await use_result(combine('/', this.data.get(nStr), this.data.get(dStr)))
 		}
 
-		// 如果字典中已存在该数字或其负数，直接返回对应的 AST 节点
-		{
-			if (this.data.has(num_str)) return use_result(this.getAst(num_str))
-			const neg_num_str = String(num.neg())
-			if (this.data.has(neg_num_str)) return use_result(new operator_node_t('u-', [this.getAst(neg_num_str)]))
+		if (this.data.has(num_str)) {
+			const ex = this.data.get(num_str)
+			if (cacheDigitShortcut(ex)) return
+			const matches = [...ex.matchAll(/\d+/g)].sort((a, b) => b.index - a.index)
+			for (const m of matches)
+				await this.ensureProven(bigfloat(m[0]), next_level)
+			return
 		}
-		// 限制搜索深度
+		{
+			const neg_num_str = String(num.neg())
+			if (this.data.has(neg_num_str))
+				return await use_result(combineUnaryNeg(this.data.get(neg_num_str)))
+		}
+
 		if (max_depth <= 0)
 			throw new Error(`无法在指定深度内证明 ${num} 的存在`)
 
 		try {
 			const factors = factorize(num)
 			if (!factors[0].abs().equals(1) && !factors[1].abs().equals(1)) {
-				const factor1_proof = await this.proveAst(factors[0], next_level)
-				const factor2_proof = await this.proveAst(factors[1], next_level)
-				await use_result(new operator_node_t('*', [factor1_proof, factor2_proof]))
+				await this.ensureProven(factors[0], next_level)
+				await this.ensureProven(factors[1], next_level)
+				await use_result(combine('*', this.data.get(String(factors[0])), this.data.get(String(factors[1]))))
 			}
-		} catch (e) { }
+		}
+		catch (e) { }
 		let key_list = this.getKeys()
 		for (let i = 0; i < key_list.length; i++) try {
 			const key = key_list[i]
@@ -139,27 +157,33 @@ class expression_dictionary_t extends Function {
 				if (new_product.floor().equals(new_product)) {
 					product = new_product
 					times++
-				} else break
+				}
+				else break
 			}
 			if (times > 0) {
 				const key_str = key.toString()
-				const times_proof = await this.proveAst(bigfloat(times), next_level)
-				const product_proof = await this.proveAst(product, next_level)
-				await use_result(new operator_node_t('*', [
-					times > 1 ? new operator_node_t('^', [this.getAst(key_str), times_proof]) : this.getAst(key_str),
-					product_proof,
-				]))
+				await this.ensureProven(bigfloat(times), next_level)
+				await this.ensureProven(product, next_level)
+				const timesSym = this.data.get(String(times))
+				const productSym = this.data.get(String(product))
+				const left = times > 1
+					? combine('^', this.data.get(key_str), timesSym, bigfloat(times))
+					: this.data.get(key_str)
+				await use_result(combine('*', left, productSym))
 				if (Math.random() > 2 / 3) break
 				else i -= Math.floor(Math.random() * (key_list.length - i))
 			}
-		} catch (e) { }
+		}
+		catch (e) { }
 		for (const key of this.getKeys()) try {
 			if (key.isInf() || key.equals(0)) continue
 			const product = num.mul(key)
 			const product_str = product.toString()
-			if (this.data.has(product_str))
-				await use_result(new operator_node_t('/', [this.getAst(product_str), this.getAst(key.toString())]))
-		} catch (e) { }
+			if (this.data.has(product_str)) {
+				await use_result(combine('/', this.data.get(product_str), this.data.get(key.toString())))
+			}
+		}
+		catch (e) { }
 		key_list = this.getKeys()
 		for (let i = 0; i < key_list.length; i++) try {
 			const key = key_list[i]
@@ -167,77 +191,70 @@ class expression_dictionary_t extends Function {
 			const mod_result = num.mod(key)
 			if (mod_result.abs().lessThan(num.abs())) {
 				const quotient = num.div(key).floor()
-				const quotient_proof = await this.proveAst(quotient, next_level)
-				const mod_result_proof = await this.proveAst(mod_result, next_level)
-				await use_result(new operator_node_t('+', [
-					new operator_node_t('*', [this.getAst(key.toString()), quotient_proof]),
-					mod_result_proof,
-				]))
+				await this.ensureProven(quotient, next_level)
+				await this.ensureProven(mod_result, next_level)
+				await use_result(combine('+', combine('*', this.data.get(key.toString()), this.data.get(String(quotient))), this.data.get(String(mod_result))))
 				if (Math.random() > 2 / 3) break
 				else i -= Math.floor(Math.random() * (key_list.length - i))
 			}
-		} catch (e) { }
-		if (result) return result
+		}
+		catch (e) { }
+		if (this.data.has(num_str)) return
 		for (const key of this.getKeys()) try {
 			const diff = num.sub(key)
 			if (diff.abs().lessThan(num.abs())) {
-				const diff_proof = await this.proveAst(diff, next_level)
-				await use_result(new operator_node_t('+', [
-					this.getAst(key.toString()),
-					diff_proof,
-				]))
+				await this.ensureProven(diff, next_level)
+				await use_result(combine('+', this.data.get(key.toString()), this.data.get(String(diff))))
 			}
-		} catch (e) { }
-		if (result) return result
+		}
+		catch (e) { }
+		if (this.data.has(num_str)) return
 		for (const key of this.getKeys()) try {
 			const sum = num.add(key)
 			const sum_str = sum.toString()
 			if (this.data.has(sum_str) || sum.abs().lessThan(num.abs())) {
-				const sum_proof = await this.proveAst(sum, next_level)
-				await use_result(new operator_node_t('-', [
-					sum_proof,
-					this.getAst(key.toString()),
-				]))
+				await this.ensureProven(sum, next_level)
+				await use_result(combine('-', this.data.get(sum_str), this.data.get(key.toString())))
 			}
-		} catch (e) { }
+		}
+		catch (e) { }
 
-		if (result) return result
+		if (this.data.has(num_str)) return
 		throw new Error(`无法证明 ${num} 的存在`)
 	}
 
 	/**
-	 * 证明给定数字可以由当前字典的子项运算结果表达。
-	 * @param {bigfloat} num 要证明的数字。
-	 * @param {number} [max_depth=Infinity] 最大搜索深度。
-	 * @param {(node: string) => void} [onProgress] 每次证明更新时调用。
-	 * @returns {Promise<string>} 证明数字存在的表达式。
-	 * @throws {Error} 如果无法证明数字的存在。
+	 * @param {string} num_str
+	 * @param {{ max_depth?: number, onProgress?: (s: string) => void }} [opts]
 	 */
-	async prove(num, { max_depth = Infinity, onProgress } = {}) {
-		return this.proveAst(num, { max_depth, onProgress }).then((node) => node.toString())
+	async materialize(num_str, opts) {
+		const ex = this.data.get(num_str)
+		if (!ex) throw new Error(`无表达式 ${num_str}`)
+		if (cacheDigitShortcut(ex)) return ex
+		const matches = [...ex.matchAll(/\d+/g)].sort((a, b) => b.index - a.index)
+		return expandLiteralsInExpr(this, ex, opts, matches)
 	}
 
 	/**
-	 * 获取表达式的计算步骤，用于调试。
-	 * @param {ast_node_t} node 表达式 AST 节点。
-	 * @returns {string} 分解后的计算步骤。
+	 * @param {bigfloat} num
+	 * @param {{ max_depth?: number, onProgress?: (s: string) => void }} [opts]
+	 * @returns {Promise<string>}
 	 */
-	getCalculationSteps(node) {
-		return node.getCalculationSteps().steps
+	async prove(num, opts) {
+		num = bigfloat(num)
+		await this.ensureProven(num, opts)
+		return this.materialize(String(num), opts)
 	}
 }
+
 class bad_expression_dictionary_t extends expression_dictionary_t {
 	constructor() {
 		super('1')
-		this.proveAst = async _ => { throw 'wtf do ya wanna? :(' }
+		this.prove = async () => { throw new Error('wtf do ya wanna? :(') }
 	}
 }
-/**
- * @type {expression_dictionary_t & {(number: number): expression_dictionary_t}}
- */
+
 const expression_dictionary_t_proxy = new Proxy(expression_dictionary_t, {
-	apply: (target, thisArg, args) => {
-		return new expression_dictionary_t(...args)
-	}
+	apply: (target, thisArg, args) => new expression_dictionary_t(...args),
 })
 export { expression_dictionary_t_proxy as expression_dictionary_t }

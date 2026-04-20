@@ -1,15 +1,11 @@
-import {
-	number_node_t,
-	add,
-	mergeDictionary
-} from './dict_ast.mjs'
+import { add, mergeDictionary } from './expr_ops.mjs'
 
 /**
  * 递归生成数字的所有可能组合的字典。
  * @param {string} n 数字字符串。
  * @param {import('@steve02081504/bigfloat').bigfloat} max_value 最大值限制。
- * @param {Map<string, Map<string, import('./dict_ast.mjs').ast_node_t>>} [cache] 子串结果缓存。
- * @returns {Map<string, import('./dict_ast.mjs').ast_node_t>} 包含数字 n 所有可能组合的字典。
+ * @param {Map<string, Map<string, string>>} [cache] 子串结果缓存。
+ * @returns {Map<string, string>} 包含数字 n 所有可能组合的字典。
  */
 export function generateRecursive(n, max_value, cache = new Map()) {
 	if (cache.has(n)) return cache.get(n)
@@ -29,7 +25,7 @@ export function generateRecursive(n, max_value, cache = new Map()) {
 				add(result, k, v)
 		}
 
-	add(result, n, new number_node_t(n))
+	add(result, n, n)
 	cache.set(n, result)
 	return result
 }

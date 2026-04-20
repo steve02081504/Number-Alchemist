@@ -60,7 +60,7 @@ console.log(`1000 = ${expr}`);
 
 // With a real-time progress callback
 await dict.prove(1919810, {
-  onProgress: (node) => process.stderr.write(`\r${node}`),
+  onProgress: (expr) => process.stderr.write(`\r${expr}`),
 });
 ```
 
@@ -90,24 +90,21 @@ Proves that `num` can be expressed using the digits of the base, and returns the
 
 Throws an `Error` if no expression can be found within the specified depth.
 
-#### `dict.proveAst(num, options?): Promise<ast_node_t>`
+#### `dict.getExpr(num): string | undefined`
 
-Same as `prove`, but returns an AST node instead of a string.
-
-#### `dict.getAst(num): ast_node_t | undefined`
-
-Retrieves the cached AST node for `num` directly from the dictionary, without searching.
+Returns the cached symbolic expression string for `num` if it exists in the dictionary, without running a proof search.
 
 ### Low-level Exports
 
 ```js
 import {
-  ast_node_t,
-  operator_node_t,
-  number_node_t,
   precedence_t,
   add,
   mergeDictionary,
+  combine,
+  combineUnaryNeg,
+  parseExpr,
+  stringify,
   serializeMap,
   deserializeMap,
 } from '@steve02081504/number-alchemist';
