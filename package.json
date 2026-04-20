@@ -1,6 +1,6 @@
 {
 	"name": "@steve02081504/number-alchemist",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "Construct and prove arithmetic expressions for any target number using only the digits of a base number.",
 	"type": "module",
 	"main": "./src/index.mjs",

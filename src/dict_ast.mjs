@@ -366,26 +366,15 @@ export class operator_node_t extends ast_node_t {
 /**
  * 向字典中添加键值对。
  * @param {Map<string, ast_node_t>} dict 字典。
- * @param {bigfloat} key 键。
- * @param {ast_node_t} value 值（AST 节点）。
- */
-function baseAdd(dict, key, value) {
-	const key_str = String(key)
-	if (!dict.has(key_str))
-		dict.set(key_str, value)
-	else if (dict.get(key_str).toString().length > value.toString().length)
-		dict.get(key_str).replace(value)
-}
-
-/**
- * 向字典中添加键值对，同时考虑一元负号。
- * @param {Map<string, ast_node_t>} dict 字典。
- * @param {bigfloat} key 键。
+ * @param {bigfloat|string} key 键。
  * @param {ast_node_t} value 值（AST 节点）。
  */
 export function add(dict, key, value) {
-	baseAdd(dict, key, value)
-	baseAdd(dict, key.neg(), new operator_node_t('u-', [value]))
+	key = String(key)
+	if (!dict.has(key))
+		dict.set(key, value)
+	else if (dict.get(key).toString().length > value.toString().length)
+		dict.get(key).replace(value)
 }
 
 /**
@@ -406,16 +395,18 @@ export function mergeDictionary(dict_1, dict_2, max_value) {
 
 			// 加法
 			add(result, key1.add(key2), new operator_node_t('+', [val1, val2]))
-			// 减法
-			add(result, key1.sub(key2), new operator_node_t('-', [val1, val2]))
 			// 乘法
 			add(result, key1.mul(key2), new operator_node_t('*', [val1, val2]))
-			// 取模
-			add(result, key1.mod(key2), new operator_node_t('%', [val1, val2]))
-			// 除法 (如果可以整除才添加)
-			const div = key1.div(key2)
-			if (div.floor().equals(div))
-				add(result, div, new operator_node_t('/', [val1, val2]))
+			if (!key2.equals(0)) {
+				// 减法
+				add(result, key1.sub(key2), new operator_node_t('-', [val1, val2]))
+				// 取模
+				const mod = key1.mod(key2)
+				add(result, mod, new operator_node_t('%', [val1, val2]))
+				// 除法 (如果可以整除才添加)
+				if (mod.equals(0))
+					add(result, key1.div(key2), new operator_node_t('/', [val1, val2]))
+			}
 			// 幂运算，快速剪枝
 			try {
 				if (

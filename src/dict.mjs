@@ -92,7 +92,7 @@ class expression_dictionary_t extends Function {
 		let result
 		const use_result = async (node) => {
 			if (!node) return
-			if (num.floor().equals(num)) add(this.data, num, node)
+			if (num.floor().equals(num)) add(this.data, num_str, node)
 			const prev = result
 			result = this.getAst(num_str)
 			if (result?.get_self?.() !== prev?.get_self?.()) await onProgress?.(result)
@@ -109,9 +109,12 @@ class expression_dictionary_t extends Function {
 			return use_result(new operator_node_t('/', [numerator_proof, denominator_proof]))
 		}
 
-		// 如果字典中已存在该数字，直接返回对应的 AST 节点
-		if (this.data.has(num_str)) return use_result(this.getAst(num_str))
-
+		// 如果字典中已存在该数字或其负数，直接返回对应的 AST 节点
+		{
+			if (this.data.has(num_str)) return use_result(this.getAst(num_str))
+			const neg_num_str = String(num.neg())
+			if (this.data.has(neg_num_str)) return use_result(new operator_node_t('u-', [this.getAst(neg_num_str)]))
+		}
 		// 限制搜索深度
 		if (max_depth <= 0)
 			throw new Error(`无法在指定深度内证明 ${num} 的存在`)

@@ -1,4 +1,3 @@
-import { bigfloat } from '@steve02081504/bigfloat'
 import {
 	number_node_t,
 	add,
@@ -26,10 +25,12 @@ export function generateRecursive(n, max_value) {
 			const left = n.slice(0, i)
 			const right = n.slice(i)
 			if (!left || !right) continue
-			result = mergeDictionary(generateRecursive(left, max_value), generateRecursive(right, max_value), max_value)
+			const current = mergeDictionary(generateRecursive(left, max_value), generateRecursive(right, max_value), max_value)
+			for (const [k, v] of current)
+				add(result, k, v)
 		}
 
-	add(result, bigfloat(n), new number_node_t(n))
+	add(result, n, new number_node_t(n))
 	generateCache.set(n, result)
 	return result
 }
