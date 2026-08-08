@@ -82,19 +82,19 @@ export class ast_node_t extends replace_able_t {
 export class number_node_t extends ast_node_t {
 	/**
 	 * 构造函数。
-	 * @param {bigint|string|number} value 数字节点的值。
+	 * @param {bigint|string|number} value 数字节点的值；字符串形态（含前导零）原样保留。
 	 */
 	constructor(value) {
 		super()
 		/**
-		 * 节点值。
-		 * @type {bigint}
+		 * 数字字面量，保留基底中的前导零。
+		 * @type {string}
 		 */
-		this.value = BigInt(value)
+		this.value = String(value)
 	}
 
 	toStringImpl() {
-		return String(this.value)
+		return this.value
 	}
 
 	calculateImpl() {
@@ -102,7 +102,7 @@ export class number_node_t extends ast_node_t {
 	}
 
 	toJSON() {
-		return this.toString()
+		return this.value
 	}
 }
 
@@ -313,6 +313,10 @@ export function add(dict, key, value) {
 		dict.set(key, value)
 	else if (dict.get(key).toString().length > value.toString().length)
 		dict.get(key).replace(value)
+
+	// 有 1 就能造 2；有了 2，模运算可按二进制下降，避免只靠 ±1 步进把调用栈撑爆
+	if (dict.has('1') && !dict.has('2'))
+		add(dict, '2', new operator_node_t('+', [dict.get('1'), dict.get('1')]))
 }
 
 /**

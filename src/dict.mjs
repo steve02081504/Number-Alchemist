@@ -150,7 +150,7 @@ class expression_dictionary_t extends Function {
 					product_proof,
 				]))
 				if (Math.random() > 2 / 3) break
-				else i -= Math.floor(Math.random() * (key_list.length - i))
+				else i = Math.floor(Math.random() * (i + 1)) - 1
 			}
 		} catch (e) { }
 		for (const key of this.getKeys()) try {
@@ -165,8 +165,9 @@ class expression_dictionary_t extends Function {
 			const key = key_list[i]
 			if (key.isInf() || key.equals(0)) continue
 			const mod_result = num.mod(key)
-			if (mod_result.abs().lessThan(num.abs())) {
-				const quotient = num.div(key).floor()
+			const quotient = num.div(key).floor()
+			// 商、余都须严格变小；否则 key=±1 时会变成 n=1*n+0，同值死递归
+			if (mod_result.abs().lessThan(num.abs()) && quotient.abs().lessThan(num.abs())) {
 				const quotient_proof = await this.proveAst(quotient, next_level)
 				const mod_result_proof = await this.proveAst(mod_result, next_level)
 				await use_result(new operator_node_t('+', [
@@ -174,7 +175,7 @@ class expression_dictionary_t extends Function {
 					mod_result_proof,
 				]))
 				if (Math.random() > 2 / 3) break
-				else i -= Math.floor(Math.random() * (key_list.length - i))
+				else i = Math.floor(Math.random() * (i + 1)) - 1
 			}
 		} catch (e) { }
 		if (result) return result

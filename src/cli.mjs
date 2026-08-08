@@ -38,7 +38,7 @@ const result = await dict.prove(target, {
 		process.stderr.write(`\r${target} = ${node}                    `)
 	},
 })
-const evaluated = eval(result.replaceAll('^', '**'))
+const evaluated = bigfloat.eval(result.replaceAll('^', '**'))
 if (!target.equals(evaluated))
 	throw new Error(`internal verification failed: ${result} != ${target}`)
 process.stderr.write(`\n`)
